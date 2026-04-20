@@ -1,4 +1,4 @@
-# hwp_automation_rs
+# hwp_automation_rs(WIP)
 
 한글(HWP) COM/OLE 자동화를 위한 Rust 바인딩 라이브러리.
 
