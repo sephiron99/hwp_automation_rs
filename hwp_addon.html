@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>hwp_addon.html</title>
+<meta http-equiv="Content-Type" content="application/xhtml+xml;charset=utf-8"/>
+<link rel="stylesheet" type="text/css" media="all" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css"  />
+<link rel="stylesheet" type="text/css" media="all" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/styles/github.min.css"  /><meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'><style> body { box-sizing: border-box; max-width: 740px; width: 100%; margin: 40px auto; padding: 0 10px; } </style><script id='MathJax-script' async src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script><script src='https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/highlight.min.js'></script><script>document.addEventListener('DOMContentLoaded', () => { document.body.classList.add('markdown-body'); document.querySelectorAll('pre[lang] > code').forEach((code) => { code.classList.add(code.parentElement.lang); }); document.querySelectorAll('pre > code').forEach((code) => { hljs.highlightBlock(code); }); });</script>
+</head>
+
+<body>
+
+<h1 id="hwp_addon-크레이트-분석">hwp_addon 크레이트 분석</h1>
+<p>HWP가 로드하는 Add-in DLL을 Rust로 작성하기 위한 프레임워크.</p>
+<hr>
+<h2 id="개요">개요</h2>
+<p>HWP는 <code>QueryUserActionInterface</code> 함수를 export하는 DLL을 애드인으로 로드한다.
+<code>hwp_addon</code>은 C++ <code>IHncUserActionModule</code> vtable 호환 레이아웃을 Rust로 구현하고,
+개발자가 <code>HwpUserAction</code> 트레잇만 구현하면 DLL을 완성할 수 있도록 래핑한다.</p>
+<hr>
+<h2 id="모듈-구조">모듈 구조</h2>
+<pre><code>hwp_addon/src/
+├── lib.rs              # export_hwp_addon! 매크로
+├── ffi.rs              # C++ vtable FFI 정의 + 트램펄린 함수
+├── hwp_user_action.rs  # HwpUserAction 트레잇, ToolbarConfig 등 공개 API
+├── toolbar.rs          # ToolbarBitmap — BMP 로드 및 HBITMAP 캐시
+└── debug.rs            # 파일 로그 + MessageBox 유틸
+</code></pre>
+<hr>
+<h2 id="구조도">구조도</h2>
+<h3 id="레이어-구성">레이어 구성</h3>
+<pre><code>┌──────────────────────────────────────────────────────────────────┐
+│                          hwp_addon                               │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  lib.rs  ─  export_hwp_addon! 매크로                       │  │
+│  │                                                            │  │
+│  │  생성물:                                                   │  │
+│  │    static VTABLE : IHncUserActionModuleVtbl                │  │
+│  │    static MODULE : RustActionModule&lt;T&gt;                     │  │
+│  │    pub fn QueryUserActionInterface() → *const MODULE       │  │
+│  │    pub fn IsAccessiblePath(…) → i32                        │  │
+│  └──────────────────────────┬─────────────────────────────────┘  │
+│                             │ 참조                               │
+│  ┌──────────────────────────▼─────────────────────────────────┐  │
+│  │  ffi.rs  ─  C++ vtable 호환 레이어                         │  │
+│  │                                                            │  │
+│  │  IHncUserActionModuleVtbl (repr C)                         │  │
+│  │    EnumAction      : extern &quot;thiscall&quot; fn ptr              │  │
+│  │    GetActionImage  : extern &quot;thiscall&quot; fn ptr              │  │
+│  │    UpdateUI        : extern &quot;thiscall&quot; fn ptr              │  │
+│  │    DoAction        : extern &quot;thiscall&quot; fn ptr              │  │
+│  │                                                            │  │
+│  │  RustActionModule&lt;T: HwpUserAction&gt; (repr C)               │  │
+│  │    lpVtbl : *const IHncUserActionModuleVtbl   ← [0..4]     │  │
+│  │    plugin : T                                 ← [4..]      │  │
+│  │                                                            │  │
+│  │  트램펄린 (thiscall → trait 위임)                          │  │
+│  │    tramp_enum_action       → plugin.enum_action()          │  │
+│  │    tramp_get_action_image  → plugin.get_action_image()     │  │
+│  │    tramp_update_ui         → plugin.dispatch_update_ui()   │  │
+│  │    tramp_do_action         → plugin.dispatch()             │  │
+│  └──────────────────────────┬─────────────────────────────────┘  │
+│                             │ 위임                               │
+│  ┌──────────────────────────▼─────────────────────────────────┐  │
+│  │  hwp_user_action.rs  ─  트레잇 레이어                      │  │
+│  │                                                            │  │
+│  │  trait HwpUserAction                                       │  │
+│  │    ┌─ 필수 구현 ──────────────────────────────────────┐    │  │
+│  │    │  fn actions()   → &amp;[ActionMeta]                  │    │  │
+│  │    │  fn do_action() → Result&lt;bool&gt;                   │    │  │
+│  │    └──────────────────────────────────────────────────┘    │  │
+│  │    ┌─ 선택 구현 (기본 제공) ──────────────────────────┐    │  │
+│  │    │  fn toolbar_config()  → Option&lt;&amp;ToolbarConfig&gt;   │    │  │
+│  │    │  fn on_initial_load() → Result&lt;bool&gt;             │    │  │
+│  │    │  fn on_load()         → Result&lt;bool&gt;             │    │  │
+│  │    │  fn update_ui()       → u32                      │    │  │
+│  │    │  fn toolbar_bitmap()  → Option&lt;isize&gt;            │    │  │
+│  │    └──────────────────────────────────────────────────┘    │  │
+│  │    ┌─ 프레임워크 내부 (오버라이드 불필요) ────────────┐    │  │
+│  │    │  fn enum_action()          → Option&lt;&amp;str&gt;        │    │  │
+│  │    │  fn get_action_image()     → Option&lt;(isize,i32)&gt; │    │  │
+│  │    │  fn dispatch()             → Result&lt;bool&gt;        │    │  │
+│  │    │  fn dispatch_update_ui()   → u32                 │    │  │
+│  │    │  fn setup_toolbar()        → Result&lt;bool&gt;        │    │  │
+│  │    └──────────────────────────────────────────────────┘    │  │
+│  │                                                            │  │
+│  │  ActionMeta  { name, label, image_index }                  │  │
+│  │  ToolbarConfig { name, serialize_path, bitmap_data,        │  │
+│  │                  target, ribbon_tab, ribbon_toolbox_index }│  │
+│  │  ToolbarTarget { Toolbar | Ribbon | Both }                 │  │
+│  │  RibbonTab     { New(&amp;str) }                               │  │
+│  └──────────────────────────┬─────────────────────────────────┘  │
+│                             │ 사용                               │
+│  ┌──────────────────────────▼─────────────────────────────────┐  │
+│  │  toolbar.rs  ─  GDI 비트맵 캐시                            │  │
+│  │                                                            │  │
+│  │  ToolbarBitmap { inner: OnceLock&lt;Option&lt;isize&gt;&gt; }          │  │
+│  │    fn load(path)          — LoadImageW                     │  │
+│  │    fn load_from_bytes(data) — CreateDIBitmap               │  │
+│  │    fn image(index) → Option&lt;(isize, i32)&gt;                  │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  debug.rs  ─  로그/MessageBox 유틸                         │  │
+│  │    log(tag, msg) / msgbox(title, msg) / msgbox_err(…)      │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="호출-흐름">호출 흐름</h3>
+<pre><code>HWP 프로세스                          hwp_addon DLL
+────────────────────────────────────────────────────────────────
+LoadLibrary(&quot;addon.dll&quot;)
+  │
+  ├─→ QueryUserActionInterface()
+  │       └─→ &amp;MODULE  (RustActionModule&lt;T&gt;, static)
+  │                ├── lpVtbl → VTABLE (IHncUserActionModuleVtbl)
+  │                └── plugin : T (HwpUserAction 구현체)
+  │
+  ├─→ EnumAction(n)
+  │       └─→ tramp_enum_action
+  │               └─→ extract_plugin(this) → plugin
+  │                       └─→ plugin.enum_action(n)
+  │                             0 → UUIDSTR_ON_INITIAL_LOAD
+  │                             1 → UUIDSTR_ON_LOAD
+  │                             n → actions()[n-2].name
+  │
+  ├─→ GetActionImage(name, state, phBitmap, pnIndex)
+  │       └─→ tramp_get_action_image
+  │               └─→ plugin.get_action_image()
+  │                       └─→ plugin.toolbar_bitmap(state)
+  │                               └─→ ToolbarBitmap::image()
+  │
+  ├─→ UpdateUI(name, pDisp, lpuState)
+  │       └─→ tramp_update_ui
+  │               └─→ with_hwp_object(pDisp) → HwpObject (mem::forget)
+  │                       └─→ plugin.dispatch_update_ui(name, hwp)
+  │                             예약 GUID → 0
+  │                             그 외    → plugin.update_ui()
+  │
+  └─→ DoAction(name, pDisp)
+          └─→ tramp_do_action
+                  └─→ with_hwp_object(pDisp) → HwpObject (mem::forget)
+                          └─→ plugin.dispatch(name, hwp)
+                                ON_INITIAL_LOAD → on_initial_load()
+                                ON_LOAD         → on_load()
+                                                    └─→ setup_toolbar()
+                                그 외            → do_action()
+</code></pre>
+<hr>
+<h2 id="ffi-레이어-ffirs">FFI 레이어 (<code>ffi.rs</code>)</h2>
+<h3 id="c-인터페이스-대응">C++ 인터페이스 대응</h3>
+<p>C++ 원본:</p>
+<pre><code class="language-cpp">interface IHncUserActionModule {
+    virtual LPCSTR EnumAction(int) = 0;
+    virtual BOOL   GetActionImage(LPCSTR, UINT, HBITMAP*, int*) = 0;
+    virtual BOOL   UpdateUI(LPCSTR, LPDISPATCH, UINT*) = 0;
+    virtual int    DoAction(LPCSTR, LPDISPATCH) = 0;
+};
+</code></pre>
+<p>MSVC 32-bit에서 가상 함수는 <code>__thiscall</code> 호출 규약(this → ECX)을 사용한다.
+<code>IHncUserActionModuleVtbl</code>은 이를 그대로 <code>extern &quot;thiscall&quot;</code> 함수 포인터로 구성한다.</p>
+<h3 id="메모리-레이아웃">메모리 레이아웃</h3>
+<pre><code>RustActionModule&lt;T&gt;
+ ├── [0..4]  lpVtbl  →  IHncUserActionModuleVtbl  (C++ vptr 위치)
+ └── [4..]   plugin  :  T  (HwpUserAction 구현체)
+</code></pre>
+<p>HWP가 vtable 포인터 바로 뒤에 <code>this</code>로 접근하므로 <code>#[repr(C)]</code> 필수.</p>
+<h3 id="트램펄린-함수">트램펄린 함수</h3>
+<p><code>tramp_enum_action</code>, <code>tramp_get_action_image</code>, <code>tramp_update_ui</code>, <code>tramp_do_action</code>
+네 함수가 C++ vtable 호출을 받아 Rust 트레잇 메서드로 위임한다.</p>
+<p><strong>IDispatch 수명 처리</strong>:
+HWP가 소유한 <code>IDispatch</code> 포인터를 <code>HwpObject</code>로 래핑할 때
+<code>AddRef</code>/<code>Release</code>를 호출하면 안 된다.
+<code>with_hwp_object</code>가 <code>from_raw_dispatch</code> 후 <code>std::mem::forget</code>으로 Drop을 방지한다.</p>
+<p><strong>EnumAction 문자열 버퍼</strong>:
+반환하는 <code>*const c_char</code>는 <code>thread_local!</code> <code>Vec&lt;u8&gt;</code>에 보관한다.
+HWP는 다음 <code>EnumAction</code> 호출 전에 문자열을 복사하므로 안전하다.</p>
+<hr>
+<h2 id="플러그인-트레잇-hwp_user_actionrs">플러그인 트레잇 (<code>hwp_user_action.rs</code>)</h2>
+<h3 id="hwpuseraction"><code>HwpUserAction</code></h3>
+<p>개발자가 구현하는 트레잇. 필수/선택 구분:</p>
+<table>
+<thead>
+<tr>
+<th>메서드</th>
+<th>필수</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>actions()</code></td>
+<td>✓</td>
+<td>사용자 액션 목록 반환</td>
+</tr>
+<tr>
+<td><code>do_action()</code></td>
+<td>✓</td>
+<td>액션 실행</td>
+</tr>
+<tr>
+<td><code>toolbar_config()</code></td>
+<td>—</td>
+<td>툴바/리본 자동 설정용 설정 반환</td>
+</tr>
+<tr>
+<td><code>on_initial_load()</code></td>
+<td>—</td>
+<td>최초 등록 시 한 번 호출</td>
+</tr>
+<tr>
+<td><code>on_load()</code></td>
+<td>—</td>
+<td>HWP 창 열릴 때마다 호출 (기본: <code>setup_toolbar</code> 실행)</td>
+</tr>
+<tr>
+<td><code>update_ui()</code></td>
+<td>—</td>
+<td>버튼 UI 상태 반환</td>
+</tr>
+<tr>
+<td><code>toolbar_bitmap()</code></td>
+<td>—</td>
+<td>HBITMAP 반환 (toolbar_config 구현 시 자동)</td>
+</tr>
+</tbody></table>
+<pre><code>### 액션 열거 순서
+</code></pre>
+<p><code>enum_action(n)</code>이 반환하는 순서:</p>
+<pre><code>0 → UUIDSTR_ON_INITIAL_LOAD  ({B91A2981-...})
+1 → UUIDSTR_ON_LOAD          ({3E4DC866-...})
+2 → actions()[0].name
+3 → actions()[1].name
+...
+</code></pre>
+<p>예약 GUID는 프레임워크가 자동 처리하므로 <code>actions()</code>에 넣지 않는다.</p>
+<h3 id="dispatch--dispatch_update_ui"><code>dispatch</code> / <code>dispatch_update_ui</code></h3>
+<p>예약 GUID를 라이프사이클 훅으로, 나머지를 <code>do_action</code>으로 라우팅한다.</p>
+<hr>
+<h2 id="툴바리본-자동-설정">툴바/리본 자동 설정</h2>
+<h3 id="toolbarconfig"><code>ToolbarConfig</code></h3>
+<pre><code class="language-rust">pub struct ToolbarConfig {
+    pub name: &amp;&#39;static str,          // 툴바 이름
+    pub serialize_path: &amp;&#39;static str, // HWP 직렬화 경로 (리본 탭 UID로도 사용)
+    pub bitmap_data: &amp;&#39;static [u8],  // 960×16 32bit RGBA BMP (include_bytes!)
+    pub target: ToolbarTarget,       // Toolbar / Ribbon / Both
+    pub ribbon_tab: RibbonTab,       // New(&quot;탭 이름&quot;)
+    pub ribbon_toolbox_index: i32,   // -1: 끝에 추가
+}
+</code></pre>
+<h3 id="setup_toolbar-동작"><code>setup_toolbar</code> 동작</h3>
+<ol>
+<li><code>ChangeSerializePath</code>로 serialize_path 설정</li>
+<li><code>IsNewSerializePath</code>가 false면 이미 등록된 것이므로 바로 반환</li>
+<li>툴바 생성: <code>CreateToolbar</code> → 각 액션마다 <code>CreateToolbarButton</code> → <code>InsertButton</code></li>
+<li>리본 생성: <code>GetToolboxToolbar</code> → <code>InsertToolboxTab</code> → <code>InsertToolbox</code> → <code>GetLayout</code> → <code>InsertGroup</code> → 각 액션마다 <code>CreateToolboxItemButtonEx</code> → <code>InsertItem</code></li>
+</ol>
+<h3 id="toolbarbitmap"><code>ToolbarBitmap</code></h3>
+<p><code>OnceLock&lt;Option&lt;isize&gt;&gt;</code>으로 HBITMAP을 한 번만 로드한다.
+<code>load_from_bytes</code>는 BMP 바이너리에서 직접 <code>CreateDIBitmap</code>으로 GDI 비트맵을 생성한다.
+파일 경로 로드는 <code>load</code> 메서드 (<code>LoadImageW</code>).</p>
+<hr>
+<h2 id="export_hwp_addon-매크로-librs"><code>export_hwp_addon!</code> 매크로 (<code>lib.rs</code>)</h2>
+<p>플러그인 타입을 받아 두 개의 <code>no_mangle</code> export 함수를 생성한다:</p>
+<pre><code class="language-rust">export_hwp_addon!(MyPlugin, MyPlugin);
+</code></pre>
+<p>생성물:</p>
+<ul>
+<li><strong><code>QueryUserActionInterface</code></strong>: <code>&amp;MODULE</code>(static <code>RustActionModule</code>) 포인터 반환</li>
+<li><strong><code>IsAccessiblePath</code></strong>: 항상 1(TRUE) 반환</li>
+</ul>
+<p><code>VTABLE</code>(static <code>IHncUserActionModuleVtbl</code>)과 <code>MODULE</code>(static <code>RustActionModule&lt;T&gt;</code>)도 생성한다.
+둘 다 <code>&#39;static</code>이므로 DLL 수명 동안 유효하다.</p>
+<hr>
+<h2 id="디버그-유틸-debugrs">디버그 유틸 (<code>debug.rs</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>함수</th>
+<th>동작</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>log(tag, msg)</code></td>
+<td><code>C:\Users\sephi\Downloads\hwp_addon_debug.log</code>에 타임스탬프 포함 기록</td>
+</tr>
+<tr>
+<td><code>msgbox(title, msg)</code></td>
+<td>로그 + 정보 MessageBox</td>
+</tr>
+<tr>
+<td><code>msgbox_err(title, msg)</code></td>
+<td>로그 + 에러 MessageBox</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="사용-예시-hello_hwp_dll">사용 예시 (<code>hello_hwp_dll</code>)</h2>
+<pre><code class="language-rust">pub struct HelloWorldPlugin;
+
+impl HwpUserAction for HelloWorldPlugin {
+    fn toolbar_config(&amp;self) -&gt; Option&lt;&amp;ToolbarConfig&gt; { Some(&amp;CONFIG) }
+
+    fn actions(&amp;self) -&gt; &amp;[ActionMeta] {
+        &amp;[ActionMeta { name: &quot;InsertHelloWorld&quot;, label: &quot;Hello&quot;, image_index: 0 }]
+    }
+
+    fn do_action(&amp;self, action_name: &amp;str, hwp: &amp;HwpObject) -&gt; Result&lt;bool&gt; {
+        // hwp.h_action(), hwp.h_parameter_set() 등으로 HWP 제어
+        Ok(true)
+    }
+}
+
+export_hwp_addon!(HelloWorldPlugin, HelloWorldPlugin);
+</code></pre>
+<hr>
+<h2 id="의존성">의존성</h2>
+<ul>
+<li><strong><code>hwp_core</code></strong>: <code>HwpObject</code>, <code>HwpVer</code>, COM 유틸</li>
+<li><strong><code>windows</code></strong>: Win32 API (GDI, UI, COM, Registry 등)</li>
+<li><strong><code>widestring</code></strong>: UTF-16 문자열 변환</li>
+<li><strong><code>thiserror</code></strong>: 에러 타입</li>
+<li><strong><code>chrono</code></strong>: 로그 타임스탬프</li>
+</ul>
+
+
+</body>
+</html>

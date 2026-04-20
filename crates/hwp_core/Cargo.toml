@@ -1,0 +1,42 @@
+[package]
+name = "hwp_core"
+version = "0.1.0"
+authors = [ "sephiron <sephiron@hanmail.net>" ]
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4"
+thiserror = "2.0.18"
+widestring = "1.2.1"
+
+# 3. Windows API 바인딩 (Microsoft 공식 크레이트)
+[dependencies.windows]
+# version = ">=0.59, <=0.62"
+version = "0.62.2" # 최신 안정화 버전 기준
+features = [
+    # COM 인터페이스 구현을 위한 매크로
+    # "implement", 
+
+    # 필수 기본 타입 (HRESULT, BSTR, HWND, BOOL 등)
+    # "Win32_Foundation", 
+
+    # COM 코어 시스템 (IUnknown, IClassFactory, CoTaskMemAlloc 등)
+    # "Win32_System_Com", 
+
+    # OLE 자동화 핵심 (IDispatch, VARIANT, SAFEARRAY 등 - HWP 파라미터 제어에 필수)
+    # "Win32_System_Ole", 
+
+    # 레지스트리 조작 (DllRegisterServer 구현 시 HWP 추가기능 등록에 필요)
+    # "Win32_System_Registry", 
+
+    # 모듈 정보 획득 (DLL 자체의 경로를 찾을 때 필요)
+    # "Win32_System_LibraryLoader",
+    "Win32_Foundation",           # 기본 타입 (BSTR, HRESULT, BOOL, HWND 등)
+    "Win32_System_Com",           # COM 코어 (IClassFactory, CoInitialize 등)
+    "Win32_System_Ole",           # OLE 코어 (IDispatch, DISPPARAMS 등)
+    "Win32_System_Variant",       # VARIANT 구조체 (0.5x 이상부터 명시적 추가 권장)
+    # "Win32_System_Registry",      # 레지스트리 조작 (옵션 - winreg 사용 시 제거 가능)
+    # "Win32_System_LibraryLoader", # DLL 경로 탐색 (GetModuleFileNameW)
+    "Win32_Globalization",
+]
