@@ -3,6 +3,7 @@ name = "hello_hwp_com"
 version = "0.1.0"
 license = "MIT"
 edition = "2024"
+publish = false
 
 [dependencies]
 hwp_com = { version = "0.1.0", path = "../hwp_com" }
