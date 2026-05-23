@@ -11,8 +11,8 @@
 // 사용자가 확정하면 스캔 중단, word cache에 빈도 기록.
 // 후보 소진 시에만 다음 문단을 추가 스캔.
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::sync::{LazyLock, Mutex};
 
 use hwp_addon::debug::log;
 use hwp_addon::export_hwp_addon;
@@ -20,7 +20,7 @@ use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, Toolb
 use hwp_addon::shortcut::{Modifiers, ShortcutKey};
 use hwp_addon::text_edit::HwpEditExt;
 use hwp_core::hwp_obj::HwpObject;
-use hwp_core::ihwpobject::lib::{mask, GetTextStatus, ScanEpos, ScanRange, ScanSpos};
+use hwp_core::ihwpobject::lib::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask};
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_2;
 
 const TOOLBAR_DATA: &[u8] = include_bytes!("../toolbar.bmp");
@@ -46,7 +46,8 @@ fn extract_words(text: &str) -> impl Iterator<Item = &str> {
 }
 
 fn is_match(word: &str, prefix: &str) -> bool {
-    word.len() > prefix.len() && word.starts_with(prefix)
+    // word.len() > prefix.len() && word.starts_with(prefix)
+    word.starts_with(prefix)
 }
 
 /// 텍스트에서 `context_word` 바로 다음에 오는 단어들을 추출합니다.
@@ -247,8 +248,6 @@ impl WordCache {
     }
 }
 
-static WORD_CACHE: LazyLock<Mutex<WordCache>> = LazyLock::new(|| Mutex::new(WordCache::new()));
-
 // ── State ──
 
 struct DabbrevState {
@@ -265,11 +264,12 @@ struct DabbrevState {
     forward_exhausted: bool,
 }
 
-static STATE: Mutex<Option<DabbrevState>> = Mutex::new(None);
-
 // ── Plugin ──
 
-pub struct DabbrevPlugin;
+pub struct DabbrevPlugin {
+    state: RefCell<Option<DabbrevState>>,
+    word_cache: RefCell<Option<WordCache>>,
+}
 
 impl DabbrevPlugin {
     /// 커서 위치까지의 문단 텍스트를 반환합니다.
@@ -388,7 +388,7 @@ impl DabbrevPlugin {
 
         log("dabbrev", &format!("prefix={prefix:?}, at_word={at_word}"));
 
-        let mut state = STATE.lock().unwrap();
+        let mut state = self.state.borrow_mut();
 
         // 연속 호출: 현재 단어가 마지막 확장 결과와 일치하면 다음 후보로
         if let Some(ref mut s) = *state {
@@ -422,7 +422,10 @@ impl DabbrevPlugin {
             if s.context_word.is_none() {
                 let accepted = s.candidates[s.current_index].clone();
                 let prev_prefix = s.prefix.clone();
-                WORD_CACHE.lock().unwrap().record(&prev_prefix, &accepted);
+                self.word_cache
+                    .borrow_mut()
+                    .get_or_insert_with(WordCache::new)
+                    .record(&prev_prefix, &accepted);
                 log(
                     "dabbrev",
                     &format!("cache: {prev_prefix:?} -> {accepted:?}"),
@@ -437,7 +440,13 @@ impl DabbrevPlugin {
             let mut candidates: Vec<String> = Vec::new();
 
             // 1. 캐시 (빈도순)
-            for w in WORD_CACHE.lock().unwrap().candidates(&prefix) {
+            let cached: Vec<String> = self
+                .word_cache
+                .borrow()
+                .as_ref()
+                .map(|c| c.candidates(&prefix))
+                .unwrap_or_default();
+            for w in cached {
                 if seen.insert(w.clone()) {
                     candidates.push(w);
                 }
@@ -660,4 +669,10 @@ impl HwpUserAction for DabbrevPlugin {
     }
 }
 
-export_hwp_addon!(DabbrevPlugin, DabbrevPlugin);
+export_hwp_addon!(
+    DabbrevPlugin,
+    DabbrevPlugin {
+        state: RefCell::new(None),
+        word_cache: RefCell::new(None),
+    }
+);

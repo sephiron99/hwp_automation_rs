@@ -51,7 +51,7 @@ pub struct ActionMeta {
 }
 
 /// 한글 플러그인(Add-in) 개발자가 구현하는 트레잇
-pub trait HwpUserAction: Sync + Send {
+pub trait HwpUserAction {
     // ── 라이프사이클 훅 (선택, 기본 구현 제공) ──
 
     /// 최초 등록 시 한 번 호출됩니다.

@@ -4,6 +4,7 @@ pub mod hwp_user_action;
 pub mod ime;
 pub mod shortcut;
 pub mod text_edit;
+pub mod text_extract;
 pub mod toolbar;
 
 /// HWP 애드인 DLL의 필수 export 함수들을 생성합니다.
