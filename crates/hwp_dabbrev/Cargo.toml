@@ -8,10 +8,11 @@ publish = false
 [lib]
 name = "hwp_dabbrev"
 crate-type = ["cdylib"]
+path = "src/lib.rs"
 
-[[bin]]
-name = "hwp_dabbrev_ole"
-path = "src/hwp_dabbrev_ole.rs"
+# [[bin]]
+# name = "hwp_dabbrev_ole"
+# path = "src/hwp_dabbrev_ole.rs"
 
 [dependencies]
 hwp_addon = { path = "../hwp_addon" }
@@ -22,7 +23,9 @@ hwp_com = { path = "../hwp_com" }
 version = "0.62.2"
 features = [
     "Win32_Foundation",
+    "Win32_Graphics_Gdi",
     "Win32_System_Com",
+    "Win32_System_LibraryLoader",
     "Win32_System_Ole",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_WindowsAndMessaging",
