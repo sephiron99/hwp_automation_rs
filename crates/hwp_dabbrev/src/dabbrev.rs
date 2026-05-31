@@ -38,9 +38,9 @@ struct WordStat {
 }
 
 impl WordStat {
-    /// 채택빈도는 등장빈도의 100배 가중치.
+    /// 채택빈도는 등장빈도의 10배 가중치.
     fn score(&self) -> u32 {
-        self.appearance + 100 * self.chosen
+        self.appearance + 10 * self.chosen
     }
 }
 
@@ -80,8 +80,9 @@ impl WordCache {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ExpansionPhase {
-    /// all_text_cache 순차 스캔 진행 인덱스 (next-word 모드 전용).
-    AllTextCache(usize),
+    /// next-word 모드 전용: all_text_cache에서 context_word 다음 단어를
+    /// 한 번에 모두 수집하는 단계.
+    AllTextCache,
     /// 캐시 소진 — 다음 fetch에서 rebuild 호출.
     NeedsReextract,
     /// 모든 소스 소진.
@@ -102,26 +103,39 @@ pub(crate) struct DabbrevState {
 }
 
 impl DabbrevPlugin {
-    /// 커서 위치까지의 문단 텍스트를 반환합니다.
-    fn get_line_to_cursor(&self, hwp: &HwpObject) -> hwp_core::error::Result<String> {
+    /// 현재 문단을 읽어 `(캐럿 앞 텍스트, 캐럿 바로 뒤 글자)`를 반환합니다.
+    ///
+    /// `GetText`의 `ScanEpos::Current`가 캐럿에서 멈추지 않고 문단 끝까지 읽는
+    /// 경우가 있어, prefix/모드 판정이 캐럿 뒤 텍스트로 오염된다. 그래서 전체
+    /// 문단을 읽은 뒤 `GetPos`의 문단 내 문자 offset(`pos`)으로 직접 잘라낸다.
+    fn read_caret_context(
+        &self,
+        hwp: &HwpObject,
+    ) -> hwp_core::error::Result<(String, Option<char>)> {
+        let (_, _, pos) = hwp.get_pos()?;
+        let caret = pos.max(0) as usize;
+
         hwp.init_scan(
             mask::NORMAL,
-            ScanRange::new(ScanSpos::Paragraph, ScanEpos::Current),
+            ScanRange::new(ScanSpos::Paragraph, ScanEpos::Paragraph),
             0,
             0,
             0,
             0,
         )?;
-        let mut line = String::new();
+        let mut para = String::new();
         loop {
             let (status, text) = hwp.get_text()?;
             match status {
-                GetTextStatus::Normal => line.push_str(&text),
+                GetTextStatus::Normal => para.push_str(&text),
                 _ => break,
             }
         }
         hwp.release_scan()?;
-        Ok(line)
+
+        let before: String = para.chars().take(caret).collect();
+        let after = para.chars().nth(caret);
+        Ok((before, after))
     }
 
     /// 커서 바로 앞의 `prefix` 글자들을 `replacement`로 교체합니다.
@@ -139,11 +153,7 @@ impl DabbrevPlugin {
     }
 
     /// 지정 문서(key)의 캐시가 없으면 text_segments()로 부트스트랩한다.
-    fn bootstrap_if_needed(
-        &self,
-        hwp: &HwpObject,
-        key: &str,
-    ) -> hwp_core::error::Result<()> {
+    fn bootstrap_if_needed(&self, hwp: &HwpObject, key: &str) -> hwp_core::error::Result<()> {
         let exists = self
             .word_caches
             .borrow()
@@ -179,42 +189,26 @@ impl DabbrevPlugin {
         let key = s.doc_key.clone();
         loop {
             match s.phase {
-                ExpansionPhase::AllTextCache(mut idx) => {
-                    let caches = self.all_text_caches.borrow();
-                    let cache_ref = caches.as_ref().and_then(|m| m.get(&key));
-                    if let Some(cache) = cache_ref {
-                        let words = &cache.words;
-                        if let Some(ref cw) = s.context_word {
-                            // next-word: words[i] == cw 면 words[i+1]이 후보.
-                            while idx + 1 < words.len() {
-                                let i = idx;
-                                idx += 1;
-                                if &words[i] == cw {
-                                    let cand = words[i + 1].clone();
-                                    if s.seen.insert(cand.clone()) {
-                                        s.candidates.push(cand);
-                                        s.phase = ExpansionPhase::AllTextCache(idx);
-                                        return Ok(true);
-                                    }
-                                }
-                            }
-                        } else {
-                            while idx < words.len() {
-                                let i = idx;
-                                idx += 1;
-                                if is_match(&words[i], &s.prefix) {
-                                    let cand = words[i].clone();
-                                    if s.seen.insert(cand.clone()) {
-                                        s.candidates.push(cand);
-                                        s.phase = ExpansionPhase::AllTextCache(idx);
-                                        return Ok(true);
-                                    }
+                ExpansionPhase::AllTextCache => {
+                    // next-word 전용: cache.words에서 context_word 바로 뒤에 나오는
+                    // 단어를 등장 순서대로(중복 제거) 한 번에 모두 모은다.
+                    {
+                        let caches = self.all_text_caches.borrow();
+                        if let Some(cache) = caches.as_ref().and_then(|m| m.get(&key))
+                            && let Some(ref cw) = s.context_word
+                        {
+                            for pair in cache.words.windows(2) {
+                                if &pair[0] == cw && s.seen.insert(pair[1].clone()) {
+                                    s.candidates.push(pair[1].clone());
                                 }
                             }
                         }
                     }
-                    drop(caches);
                     s.phase = ExpansionPhase::NeedsReextract;
+                    if s.candidates.len() > prev_len {
+                        return Ok(true);
+                    }
+                    // 캐시에 후보가 전혀 없으면 같은 호출에서 곧장 rebuild 단계로.
                 }
                 ExpansionPhase::NeedsReextract => {
                     let added = {
@@ -267,7 +261,7 @@ impl DabbrevPlugin {
         let key = doc_key(hwp);
         self.bootstrap_if_needed(hwp, &key)?;
 
-        let line = self.get_line_to_cursor(hwp)?;
+        let (line, char_after) = self.read_caret_context(hwp)?;
         // HWP GetText는 trailing 제어 문자(paragraph marker 등)를 포함할 수 있다.
         let line = line.trim_end_matches(|c: char| c.is_control()).to_string();
         let at_word = line.chars().last().is_some_and(is_word_char);
@@ -283,7 +277,9 @@ impl DabbrevPlugin {
 
         log(
             "dabbrev",
-            &format!("doc_key={key:?}, prefix={prefix:?}, at_word={at_word}"),
+            &format!(
+                "doc_key={key:?}, prefix={prefix:?}, at_word={at_word}, char_after={char_after:?}"
+            ),
         );
 
         let mut state = self.state.borrow_mut();
@@ -392,6 +388,12 @@ impl DabbrevPlugin {
             Ok(true)
         } else {
             // ── next-word 모드 ──
+            // 캐럿 바로 뒤에 단어가 붙어 있으면(단어 중간) next-word 확장하지 않는다.
+            if char_after.is_some_and(is_word_char) {
+                *state = None;
+                log("dabbrev", "next-word: 캐럿 뒤가 단어 — 억제");
+                return Ok(false);
+            }
             let trimmed = line.trim_end_matches(|c: char| !is_word_char(c));
             let prev_word = trimmed
                 .rsplit(|c: char| !is_word_char(c))
@@ -416,7 +418,7 @@ impl DabbrevPlugin {
                 candidates: Vec::new(),
                 current_index: 0,
                 seen: HashSet::new(),
-                phase: ExpansionPhase::AllTextCache(0),
+                phase: ExpansionPhase::AllTextCache,
             };
 
             while s.candidates.is_empty() && self.fetch_more(hwp, &mut s)? {}
