@@ -180,7 +180,11 @@ unsafe fn create_popup(owner: HWND) -> HWND {
 /// popup을 캐럿 위에 띄워 모니터 밖 이탈을 막는다. 그 외엔 캐럿 아래.
 unsafe fn try_anchor() -> POINT {
     unsafe {
+        let screen_w = GetSystemMetrics(SM_CXSCREEN);
         let screen_h = GetSystemMetrics(SM_CYSCREEN);
+        // popup 오른쪽이 화면 밖으로 잘리지 않도록 x 최대값 제한 (왼쪽은 0).
+        let max_x = (screen_w - POPUP_WIDTH).max(0);
+        let clamp_x = |x: i32| x.clamp(0, max_x);
         let fg = GetForegroundWindow();
         if !fg.0.is_null() {
             let tid = GetWindowThreadProcessId(fg, None);
@@ -212,18 +216,23 @@ unsafe fn try_anchor() -> POINT {
                             // 캐럿이 화면 하단 1/3에 있음 → 위로. 음수로 빠지면
                             // 화면 상단으로 clamp.
                             let y = top_pt.y - POPUP_HEIGHT - margin;
-                            return POINT { x: top_pt.x, y };
+                            return POINT {
+                                x: clamp_x(top_pt.x),
+                                y,
+                            };
                         } else {
                             let y = bot_pt.y + 2;
-                            return POINT { x: bot_pt.x, y };
+                            return POINT {
+                                x: clamp_x(bot_pt.x),
+                                y,
+                            };
                         }
                     }
                 }
             }
         }
-        let cx = GetSystemMetrics(SM_CXSCREEN);
         POINT {
-            x: cx / 2 - POPUP_WIDTH / 2,
+            x: clamp_x(screen_w / 2 - POPUP_WIDTH / 2),
             y: screen_h / 2 - POPUP_HEIGHT / 2,
         }
     }
