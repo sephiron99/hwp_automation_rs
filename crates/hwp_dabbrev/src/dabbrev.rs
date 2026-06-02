@@ -485,15 +485,28 @@ impl DabbrevPlugin {
 
         let replace_state = state_cell.clone();
         let replace_last = last_inserted.clone();
+        // Approach A: 활성 완성의 undo 항목을 항상 1개로 유지한다. 후보를 옮길 때마다
+        // 직전 삽입을 undo()로 되돌린 뒤 새 후보를 재삽입한다(누적 방지).
         let replace_cb = move |sel: usize| {
-            let new_word = replace_state.borrow().candidates.get(sel).cloned();
-            if let Some(new_word) = new_word {
-                let hwp = unsafe { &*hwp_ptr };
-                let prev = replace_last.borrow().clone();
-                let _ = hwp.replace_word_before(&prev, &new_word);
-                *replace_last.borrow_mut() = new_word;
-                replace_state.borrow_mut().current_index = sel;
+            let new_word = {
+                let st = replace_state.borrow();
+                if sel == st.current_index {
+                    return; // 같은 후보 → no-op (불필요한 깜빡임 방지)
+                }
+                match st.candidates.get(sel).cloned() {
+                    Some(w) => w,
+                    None => return,
+                }
+            };
+            let hwp = unsafe { &*hwp_ptr };
+            let _ = hwp.undo(); // 직전 표시 단어를 "확장 직전" 상태로 되돌림
+            if mode_is_prefix {
+                let _ = hwp.replace_word_before(&original_prefix, &new_word);
+            } else {
+                let _ = hwp.insert_text(&new_word);
             }
+            replace_state.borrow_mut().current_index = sel;
+            *replace_last.borrow_mut() = new_word;
         };
 
         let forward_target = unsafe { GetForegroundWindow() };
@@ -514,14 +527,11 @@ impl DabbrevPlugin {
             ui_popup::Outcome::Cancelled => {
                 log(
                     "dabbrev",
-                    &format!("popup cancelled: restoring from {last:?}"),
+                    &format!("popup cancelled: undo from {last:?}"),
                 );
-                let restore_to = if mode_is_prefix {
-                    original_prefix.as_str()
-                } else {
-                    ""
-                };
-                let _ = hwp.replace_word_before(&last, restore_to);
+                // 활성 완성의 단일 undo 항목을 되돌려 확장 직전 상태로 복원
+                // (prefix 모드 → 원래 prefix, next-word → 공백 뒤 원상태).
+                let _ = hwp.undo();
                 *self.state.borrow_mut() = None;
             }
         }
