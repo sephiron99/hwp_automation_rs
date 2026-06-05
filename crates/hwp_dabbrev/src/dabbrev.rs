@@ -11,7 +11,7 @@ use hwp_core::{
 };
 use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
 
-use crate::{AllTextCache, DabbrevPlugin, extract_all_words, ui_popup};
+use crate::{AllTextCache, DabbrevPlugin, extract_all_words, strip_leading_nonword, ui_popup};
 
 fn is_word_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == ':'
@@ -19,6 +19,15 @@ fn is_word_char(c: char) -> bool {
 
 fn is_match(word: &str, prefix: &str) -> bool {
     word.len() > prefix.len() && word.starts_with(prefix)
+}
+
+/// 직전 입력(space 등)과 undo 레코드가 병합되지 않도록, 캐럿 위치를 빈 범위로
+/// 선택해 undo 경계를 만든 뒤 삽입한다. next-word 모드에서 후속 undo()가 캐럿
+/// 앞 공백까지 함께 지우는 것을 막는다(매 삽입을 독립 undo 단위로 유지).
+fn insert_text_break_undo(hwp: &HwpObject, text: &str) -> hwp_core::error::Result<()> {
+    let (_, para, pos) = hwp.get_pos()?;
+    let _ = hwp.select_text(para, pos, para, pos)?;
+    hwp.insert_text(text)
 }
 
 /// 현재 활성 문서의 캐시 키.
@@ -269,6 +278,7 @@ impl DabbrevPlugin {
         let prefix = if at_word {
             line.rsplit(|c: char| !is_word_char(c))
                 .next()
+                .map(strip_leading_nonword)
                 .filter(|w| !w.is_empty())
                 .map(|w| w.to_string())
         } else {
@@ -398,6 +408,7 @@ impl DabbrevPlugin {
             let prev_word = trimmed
                 .rsplit(|c: char| !is_word_char(c))
                 .next()
+                .map(strip_leading_nonword)
                 .filter(|w| !w.is_empty())
                 .map(|w| w.to_string());
 
@@ -439,7 +450,8 @@ impl DabbrevPlugin {
             *state = Some(s);
             drop(state);
 
-            hwp.insert_text(&expansion)?;
+            // undo 경계를 만들며 삽입(직전 space와 레코드 병합 방지).
+            insert_text_break_undo(hwp, &expansion)?;
             self.run_popup_session(hwp, &expansion, false)?;
             Ok(true)
         }
@@ -503,7 +515,9 @@ impl DabbrevPlugin {
             if mode_is_prefix {
                 let _ = hwp.replace_word_before(&original_prefix, &new_word);
             } else {
-                let _ = hwp.insert_text(&new_word);
+                // next-word도 undo 경계를 만들며 재삽입 — 매 undo()가 후보만
+                // 되돌리고 캐럿 앞 공백은 보존한다.
+                let _ = insert_text_break_undo(hwp, &new_word);
             }
             replace_state.borrow_mut().current_index = sel;
             *replace_last.borrow_mut() = new_word;
@@ -525,10 +539,7 @@ impl DabbrevPlugin {
                 *self.state.borrow_mut() = None;
             }
             ui_popup::Outcome::Cancelled => {
-                log(
-                    "dabbrev",
-                    &format!("popup cancelled: undo from {last:?}"),
-                );
+                log("dabbrev", &format!("popup cancelled: undo from {last:?}"));
                 // 활성 완성의 단일 undo 항목을 되돌려 확장 직전 상태로 복원
                 // (prefix 모드 → 원래 prefix, next-word → 공백 뒤 원상태).
                 let _ = hwp.undo();
