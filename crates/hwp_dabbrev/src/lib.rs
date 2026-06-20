@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 // word cache와 all_text_cache 두가지가 존재
 // word cache는 채택빈도도 저장 (채택빈도 가중치 = 등장빈도의 100배)
 // all_text_cache는 직전에 얻은 text_segments()의 결과를 단순히 캐싱
