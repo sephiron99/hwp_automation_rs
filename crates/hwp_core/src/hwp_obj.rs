@@ -6,6 +6,10 @@ use windows::Win32::System::Com::IDispatch;
 use windows::Win32::System::Variant::VARIANT;
 
 /// 한글 OLE Automation 최상위 객체 래퍼 (`IHwpObject` 대응)
+///
+/// `Clone`은 COM 참조 카운트(AddRef)를 증가시키며, 복제본은 같은 HWP
+/// 인스턴스를 가리킨다. 'static 클로저(팝업 콜백 등)에 소유값으로 넘길 때 사용.
+#[derive(Clone)]
 pub struct HwpObject {
     pub(crate) dispatch: IDispatch,
     ver: HwpVer,

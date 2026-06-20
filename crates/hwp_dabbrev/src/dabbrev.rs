@@ -9,7 +9,7 @@ use hwp_core::{
     hwp_obj::HwpObject,
     ihwpobject::lib::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask},
 };
-use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+use winsafe::HWND;
 
 use crate::{AllTextCache, DabbrevPlugin, extract_all_words, strip_leading_nonword, ui_popup};
 
@@ -111,6 +111,86 @@ pub(crate) struct DabbrevState {
     phase: ExpansionPhase,
 }
 
+/// phase에 따라 후보를 추가로 채운다. 새 후보가 하나라도 들어오면 true.
+///
+/// popup 콜백('static 클로저)에서도 호출해야 하므로 `&self` 대신
+/// all_text_caches 셀을 직접 받는 자유 함수로 둔다.
+fn fetch_more_into(
+    all_text_caches: &RefCell<Option<HashMap<String, AllTextCache>>>,
+    hwp: &HwpObject,
+    s: &mut DabbrevState,
+) -> hwp_core::error::Result<bool> {
+    let prev_len = s.candidates.len();
+    let key = s.doc_key.clone();
+    loop {
+        match s.phase {
+            ExpansionPhase::AllTextCache => {
+                // next-word 전용: cache.words에서 context_word 바로 뒤에 나오는
+                // 단어를 등장 순서대로(중복 제거) 한 번에 모두 모은다.
+                {
+                    let caches = all_text_caches.borrow();
+                    if let Some(cache) = caches.as_ref().and_then(|m| m.get(&key))
+                        && let Some(ref cw) = s.context_word
+                    {
+                        for pair in cache.words.windows(2) {
+                            if &pair[0] == cw && s.seen.insert(pair[1].clone()) {
+                                s.candidates.push(pair[1].clone());
+                            }
+                        }
+                    }
+                }
+                s.phase = ExpansionPhase::NeedsReextract;
+                if s.candidates.len() > prev_len {
+                    return Ok(true);
+                }
+                // 캐시에 후보가 전혀 없으면 같은 호출에서 곧장 rebuild 단계로.
+            }
+            ExpansionPhase::NeedsReextract => {
+                let added = {
+                    let mut caches = all_text_caches.borrow_mut();
+                    let map = caches.get_or_insert_with(HashMap::new);
+                    map.entry(key.clone())
+                        .or_insert_with(AllTextCache::new)
+                        .rebuild(hwp)?
+                };
+                log(
+                    "dabbrev",
+                    &format!("reextract[{key:?}]: {} added words", added.len()),
+                );
+                let caches = all_text_caches.borrow();
+                let cache = caches.as_ref().and_then(|m| m.get(&key));
+                if let Some(ref cw) = s.context_word {
+                    // next-word 모드: 새로 들어온 단어가 cw 뒤에 나오는 경우만 후보.
+                    if let Some(cache) = cache {
+                        let added_set: HashSet<&str> = added.iter().map(|s| s.as_str()).collect();
+                        for pair in cache.words.windows(2) {
+                            if &pair[0] == cw && added_set.contains(pair[1].as_str()) {
+                                let cand = pair[1].clone();
+                                if s.seen.insert(cand.clone()) {
+                                    s.candidates.push(cand);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // prefix 모드: rebuild 후 전체 cache.words에서
+                    // prefix 매칭 + 아직 seen에 안 들어간 것 모두 추가 (spec).
+                    if let Some(cache) = cache {
+                        for w in &cache.words {
+                            if is_match(w, &s.prefix) && s.seen.insert(w.clone()) {
+                                s.candidates.push(w.clone());
+                            }
+                        }
+                    }
+                }
+                s.phase = ExpansionPhase::Done;
+                return Ok(s.candidates.len() > prev_len);
+            }
+            ExpansionPhase::Done => return Ok(s.candidates.len() > prev_len),
+        }
+    }
+}
+
 impl DabbrevPlugin {
     /// 현재 문단을 읽어 `(캐럿 앞 텍스트, 캐럿 바로 뒤 글자)`를 반환합니다.
     ///
@@ -194,76 +274,7 @@ impl DabbrevPlugin {
 
     /// phase에 따라 후보를 추가로 채운다. 새 후보가 하나라도 들어오면 true.
     fn fetch_more(&self, hwp: &HwpObject, s: &mut DabbrevState) -> hwp_core::error::Result<bool> {
-        let prev_len = s.candidates.len();
-        let key = s.doc_key.clone();
-        loop {
-            match s.phase {
-                ExpansionPhase::AllTextCache => {
-                    // next-word 전용: cache.words에서 context_word 바로 뒤에 나오는
-                    // 단어를 등장 순서대로(중복 제거) 한 번에 모두 모은다.
-                    {
-                        let caches = self.all_text_caches.borrow();
-                        if let Some(cache) = caches.as_ref().and_then(|m| m.get(&key))
-                            && let Some(ref cw) = s.context_word
-                        {
-                            for pair in cache.words.windows(2) {
-                                if &pair[0] == cw && s.seen.insert(pair[1].clone()) {
-                                    s.candidates.push(pair[1].clone());
-                                }
-                            }
-                        }
-                    }
-                    s.phase = ExpansionPhase::NeedsReextract;
-                    if s.candidates.len() > prev_len {
-                        return Ok(true);
-                    }
-                    // 캐시에 후보가 전혀 없으면 같은 호출에서 곧장 rebuild 단계로.
-                }
-                ExpansionPhase::NeedsReextract => {
-                    let added = {
-                        let mut caches = self.all_text_caches.borrow_mut();
-                        let map = caches.get_or_insert_with(HashMap::new);
-                        map.entry(key.clone())
-                            .or_insert_with(AllTextCache::new)
-                            .rebuild(hwp)?
-                    };
-                    log(
-                        "dabbrev",
-                        &format!("reextract[{key:?}]: {} added words", added.len()),
-                    );
-                    let caches = self.all_text_caches.borrow();
-                    let cache = caches.as_ref().and_then(|m| m.get(&key));
-                    if let Some(ref cw) = s.context_word {
-                        // next-word 모드: 새로 들어온 단어가 cw 뒤에 나오는 경우만 후보.
-                        if let Some(cache) = cache {
-                            let added_set: HashSet<&str> =
-                                added.iter().map(|s| s.as_str()).collect();
-                            for pair in cache.words.windows(2) {
-                                if &pair[0] == cw && added_set.contains(pair[1].as_str()) {
-                                    let cand = pair[1].clone();
-                                    if s.seen.insert(cand.clone()) {
-                                        s.candidates.push(cand);
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // prefix 모드: rebuild 후 전체 cache.words에서
-                        // prefix 매칭 + 아직 seen에 안 들어간 것 모두 추가 (spec).
-                        if let Some(cache) = cache {
-                            for w in &cache.words {
-                                if is_match(w, &s.prefix) && s.seen.insert(w.clone()) {
-                                    s.candidates.push(w.clone());
-                                }
-                            }
-                        }
-                    }
-                    s.phase = ExpansionPhase::Done;
-                    return Ok(s.candidates.len() > prev_len);
-                }
-                ExpansionPhase::Done => return Ok(s.candidates.len() > prev_len),
-            }
-        }
+        fetch_more_into(&self.all_text_caches, hwp, s)
     }
 
     pub fn expand(&self, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
@@ -477,26 +488,28 @@ impl DabbrevPlugin {
         let original_prefix = state.prefix.clone();
         let session_doc_key = state.doc_key.clone();
 
-        // SAFETY: ui_popup::show()는 동기 message pump이며 plugin/hwp 참조는
-        // 이 함수의 호출 동안 유효하다. 콜백은 popup 내부에서만 invocation됨.
-        let plugin_ptr: *const Self = self;
-        let hwp_ptr: *const HwpObject = hwp;
+        // 콜백은 winsafe 이벤트('static 클로저)에 저장되므로 참조를 캡처할 수
+        // 없다. HwpObject는 COM refcount clone으로, all_text_caches는 잠시
+        // 꺼내 Rc로 공유했다가 popup 종료 후 되돌리는 방식으로 소유값만 넘긴다.
         let state_cell: Rc<RefCell<DabbrevState>> = Rc::new(RefCell::new(state));
+        let atc: Rc<RefCell<Option<HashMap<String, AllTextCache>>>> =
+            Rc::new(RefCell::new(self.all_text_caches.take()));
         let last_inserted: Rc<RefCell<String>> =
             Rc::new(RefCell::new(initial_inserted.to_string()));
 
         let fetch_state = state_cell.clone();
+        let fetch_atc = atc.clone();
+        let fetch_hwp = hwp.clone();
         let fetch_cb = move || -> Vec<String> {
             let mut s = fetch_state.borrow_mut();
             let before = s.candidates.len();
-            let plugin = unsafe { &*plugin_ptr };
-            let hwp = unsafe { &*hwp_ptr };
-            let _ = plugin.fetch_more(hwp, &mut s);
+            let _ = fetch_more_into(&fetch_atc, &fetch_hwp, &mut s);
             s.candidates[before..].to_vec()
         };
 
         let replace_state = state_cell.clone();
         let replace_last = last_inserted.clone();
+        let replace_hwp = hwp.clone();
         // Approach A: 활성 완성의 undo 항목을 항상 1개로 유지한다. 후보를 옮길 때마다
         // 직전 삽입을 undo()로 되돌린 뒤 새 후보를 재삽입한다(누적 방지).
         let replace_cb = move |sel: usize| {
@@ -510,21 +523,26 @@ impl DabbrevPlugin {
                     None => return,
                 }
             };
-            let hwp = unsafe { &*hwp_ptr };
-            let _ = hwp.undo(); // 직전 표시 단어를 "확장 직전" 상태로 되돌림
+            let _ = replace_hwp.undo(); // 직전 표시 단어를 "확장 직전" 상태로 되돌림
             if mode_is_prefix {
-                let _ = hwp.replace_word_before(&original_prefix, &new_word);
+                let _ = replace_hwp.replace_word_before(&original_prefix, &new_word);
             } else {
                 // next-word도 undo 경계를 만들며 재삽입 — 매 undo()가 후보만
                 // 되돌리고 캐럿 앞 공백은 보존한다.
-                let _ = insert_text_break_undo(hwp, &new_word);
+                let _ = insert_text_break_undo(&replace_hwp, &new_word);
             }
             replace_state.borrow_mut().current_index = sel;
             *replace_last.borrow_mut() = new_word;
         };
 
-        let forward_target = unsafe { GetForegroundWindow() };
+        let forward_target = HWND::GetForegroundWindow();
         let outcome = ui_popup::show(&initial, start_index, fetch_cb, replace_cb, forward_target);
+
+        // 꺼냈던 캐시 복귀. winsafe가 창 파괴 시 이벤트 클로저를 해제하므로
+        // try_unwrap이 정상 경로다(clone 폴백은 방어용).
+        *self.all_text_caches.borrow_mut() = Rc::try_unwrap(atc)
+            .map(RefCell::into_inner)
+            .unwrap_or_else(|rc| rc.borrow().clone());
 
         let last = last_inserted.borrow().clone();
         match outcome {

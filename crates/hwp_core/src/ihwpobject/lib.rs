@@ -268,6 +268,31 @@ impl HwpObject {
         )
     }
 
+    /// `SaveAs` — 현재 문서를 지정한 경로/포맷으로 저장합니다.
+    ///
+    /// SDK: `boolean SaveAs(BSTR Path, BSTR Format, BSTR arg)`
+    /// - `path` — 저장할 전체 파일 경로
+    /// - `format` — 파일 포맷 문자열. 예: `"HWP"`, `"HWPX"`, `"HWPML2X"`, `"PDF"`,
+    ///   `"HTML"`, `"UNICODE"`, `"TEXT"`
+    /// - `arg` — 추가 옵션 문자열(없으면 빈 문자열)
+    ///
+    /// 반환값은 저장 성공 여부(boolean).
+    pub fn save_as(&self, path: &str, format: &str, arg: &str) -> crate::error::Result<bool> {
+        self.call_with(
+            "SaveAs",
+            vec![
+                path.into_variant()?,
+                format.into_variant()?,
+                arg.into_variant()?,
+            ],
+        )
+    }
+
+    /// 현재 문서를 hwpx(`HWPX`) 포맷으로 저장합니다. (`SaveAs(path, "HWPX", "")`)
+    pub fn save_as_hwpx(&self, path: &str) -> crate::error::Result<bool> {
+        self.save_as(path, "HWPX", "")
+    }
+
     /// `InitScan` — 문서 텍스트 검색을 초기화합니다.
     ///
     /// `GetText`를 호출하기 전에 반드시 호출해야 합니다.

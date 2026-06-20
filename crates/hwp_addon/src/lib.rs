@@ -2,6 +2,7 @@ pub mod debug;
 pub mod ffi;
 pub mod hwp_user_action;
 pub mod ime;
+pub mod keyfwd;
 pub mod shortcut;
 pub mod text_edit;
 pub mod text_extract;

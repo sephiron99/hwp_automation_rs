@@ -38,6 +38,9 @@ static CONFIG: ToolbarConfig = ToolbarConfig {
 
 // ── All Text Cache ──
 
+/// `Clone`은 popup 세션이 캐시를 Rc로 잠시 공유한 뒤 되돌릴 때의
+/// 방어용 폴백(`Rc::try_unwrap` 실패 시)에 쓰인다.
+#[derive(Clone)]
 pub(crate) struct AllTextCache {
     words: Vec<String>,
 }

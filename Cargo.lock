@@ -81,6 +81,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hwp2md"
+version = "0.1.0"
+
+[[package]]
 name = "hwp_addon"
 version = "0.1.0"
 dependencies = [
@@ -119,6 +123,7 @@ dependencies = [
  "hwp_com",
  "hwp_core",
  "windows",
+ "winsafe",
 ]
 
 [[package]]
@@ -409,3 +414,9 @@ checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
 dependencies = [
  "windows-link",
 ]
+
+[[package]]
+name = "winsafe"
+version = "0.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcfff8264c3af1b0352006934e2265365ecb5a145aee88e770dc8b82e0456f4f"
