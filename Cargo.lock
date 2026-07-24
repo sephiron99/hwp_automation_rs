@@ -81,10 +81,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hwp2md"
-version = "0.1.0"
-
-[[package]]
 name = "hwp_addon"
 version = "0.1.0"
 dependencies = [
