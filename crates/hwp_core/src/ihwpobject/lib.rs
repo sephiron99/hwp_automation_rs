@@ -268,6 +268,33 @@ impl HwpObject {
         )
     }
 
+    /// `SetTextFile` — 문자열로 변환된 문서를 현재 문서에 설정합니다.
+    ///
+    /// SDK: `long SetTextFile(VARIANT data, BSTR format, BSTR option)`
+    ///
+    /// # 형식 (`format`)
+    /// `GetTextFileFormat` 참조. `HWP` 형식의 `data`는 BASE64로 인코딩되어 있어야
+    /// 합니다.
+    ///
+    /// # 옵션
+    /// - `insert_file = true` — 현재 캐럿 이후에 문서를 삽입합니다.
+    pub fn set_text_file(
+        &self,
+        data: &str,
+        format: GetTextFileFormat,
+        insert_file: bool,
+    ) -> crate::error::Result<i32> {
+        let option = if insert_file { "insertfile" } else { "" };
+        self.call_with(
+            "SetTextFile",
+            vec![
+                data.into_variant()?,
+                format.as_str().into_variant()?,
+                option.into_variant()?,
+            ],
+        )
+    }
+
     /// `SaveAs` — 현재 문서를 지정한 경로/포맷으로 저장합니다.
     ///
     /// SDK: `boolean SaveAs(BSTR Path, BSTR Format, BSTR arg)`
