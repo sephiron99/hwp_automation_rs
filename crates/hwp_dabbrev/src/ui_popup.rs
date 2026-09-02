@@ -22,7 +22,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
 use hwp_addon::debug::log;
-use winsafe::{self as w, co, gui, msg::WndMsg, prelude::*};
+use winsafe::{self as w, co, gui, msg::Wm, prelude::*};
 
 const POPUP_WIDTH: i32 = 200;
 const POPUP_HEIGHT: i32 = 120;
@@ -86,12 +86,13 @@ pub fn show(
 
     // run_main은 창 생성 실패 시 panic한다. FFI 경계(HWP의 DoAction 호출)를
     // unwind가 넘지 않도록 여기서 잡아 Cancelled로 처리.
-    let (outcome, pending) =
-        catch_unwind(AssertUnwindSafe(|| run_popup(initial, start_index, fetch_more, replace)))
-            .unwrap_or_else(|_| {
-                log("ui_popup", "popup panic — cancelled 처리");
-                (Outcome::Cancelled, None)
-            });
+    let (outcome, pending) = catch_unwind(AssertUnwindSafe(|| {
+        run_popup(initial, start_index, fetch_more, replace)
+    }))
+    .unwrap_or_else(|_| {
+        log("ui_popup", "popup panic — cancelled 처리");
+        (Outcome::Cancelled, None)
+    });
 
     if let (Some(target), Some(k)) = (&forward_target, pending) {
         hwp_addon::keyfwd::forward_key(target.ptr() as usize, k.wparam, k.lparam, k.char_wparam);
@@ -159,7 +160,7 @@ fn run_popup(
 
     let wnd2 = wnd.clone();
     let se2 = se.clone();
-    wnd.on().wm(co::WM::KEYDOWN, move |p: WndMsg| {
+    wnd.on().wm(co::WM::KEYDOWN, move |p: Wm| {
         on_key_down(&se2, wnd2.hwnd(), &p);
         Ok(0) // handled — DefWindowProc로 가지 않음 (swallow)
     });
@@ -210,7 +211,7 @@ fn run_popup(
 
 /// WM_KEYDOWN 분기. 모든 키는 swallow되며, forward가 필요한 키는 pending에
 /// 기록해 펌프 종료 후 보낸다.
-fn on_key_down(se: &Session, hwnd: &w::HWND, p: &WndMsg) {
+fn on_key_down(se: &Session, hwnd: &w::HWND, p: &Wm) {
     let vk = p.wparam as u16;
     let ctrl_slash = vk == co::VK::OEM_2.raw() && w::GetAsyncKeyState(co::VK::CONTROL);
 
@@ -231,11 +232,16 @@ fn on_key_down(se: &Session, hwnd: &w::HWND, p: &WndMsg) {
     // Right / Space: 확정 + forward (Space의 ' '는 WM_CHAR로 자연 회수됨)
     if vk == co::VK::RIGHT.raw() || vk == co::VK::SPACE.raw() {
         let ch = drain_char(hwnd);
-        close(se, hwnd, Outcome::Committed, Some(PendingKey {
-            wparam: p.wparam,
-            lparam: p.lparam,
-            char_wparam: ch,
-        }));
+        close(
+            se,
+            hwnd,
+            Outcome::Committed,
+            Some(PendingKey {
+                wparam: p.wparam,
+                lparam: p.lparam,
+                char_wparam: ch,
+            }),
+        );
         return;
     }
 
@@ -248,11 +254,16 @@ fn on_key_down(se: &Session, hwnd: &w::HWND, p: &WndMsg) {
 
     // 그 외 모든 키: 취소 + forward
     let ch = drain_char(hwnd);
-    close(se, hwnd, Outcome::Cancelled, Some(PendingKey {
-        wparam: p.wparam,
-        lparam: p.lparam,
-        char_wparam: ch,
-    }));
+    close(
+        se,
+        hwnd,
+        Outcome::Cancelled,
+        Some(PendingKey {
+            wparam: p.wparam,
+            lparam: p.lparam,
+            char_wparam: ch,
+        }),
+    );
 }
 
 fn close(se: &Session, hwnd: &w::HWND, outcome: Outcome, pending: Option<PendingKey>) {
@@ -344,7 +355,12 @@ fn paint(se: &Session, hwnd: &w::HWND) -> w::SysResult<()> {
         } else {
             (co::COLOR::WINDOW, co::COLOR::WINDOWTEXT)
         };
-        let rc_row = w::RECT { left: rc.left, top: y, right: rc.right, bottom: y + row_h };
+        let rc_row = w::RECT {
+            left: rc.left,
+            top: y,
+            right: rc.right,
+            bottom: y + row_h,
+        };
         let brush = w::HBRUSH::GetSysColorBrush(bg)?;
         hdc.FillRect(rc_row, &brush)?;
         hdc.SetBkColor(w::GetSysColor(bg))?;
@@ -393,5 +409,8 @@ fn try_anchor() -> w::POINT {
             }
         }
     }
-    w::POINT::with(clamp_x(screen_w / 2 - POPUP_WIDTH / 2), screen_h / 2 - POPUP_HEIGHT / 2)
+    w::POINT::with(
+        clamp_x(screen_w / 2 - POPUP_WIDTH / 2),
+        screen_h / 2 - POPUP_HEIGHT / 2,
+    )
 }

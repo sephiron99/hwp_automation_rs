@@ -88,13 +88,13 @@ fn extract_words(text: &str) -> impl Iterator<Item = &str> {
         .filter(|w| !w.is_empty())
 }
 
-fn is_word_char(c: char) -> bool {
-    c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == ':'
+pub(crate) fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '-' || c == ':'
 }
 
 /// 단어/prefix는 영숫자에서 시작한다. 앞에 붙은 비단어 문자(연결용 구두점
-/// `.`/`-`/`:`/`_` 등, 단어 내부에서만 의미 있는 문자)를 제거해 실제 단어
-/// 시작점부터 반환한다. 예: `.bar`→`bar`. 내부 연결 문자는 보존(`a.b.c`).
+/// `-`/`:`/`_` 등, 단어 내부에서만 의미 있는 문자)를 제거해 실제 단어
+/// 시작점부터 반환한다. 예: `-bar`→`bar`. 내부 연결 문자는 보존(`a-b:c`).
 pub(crate) fn strip_leading_nonword(w: &str) -> &str {
     w.trim_start_matches(|c: char| !c.is_alphanumeric())
 }

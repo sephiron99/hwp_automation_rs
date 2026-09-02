@@ -11,11 +11,9 @@ use hwp_core::{
 };
 use winsafe::HWND;
 
-use crate::{AllTextCache, DabbrevPlugin, extract_all_words, strip_leading_nonword, ui_popup};
-
-fn is_word_char(c: char) -> bool {
-    c.is_alphanumeric() || c == '_' || c == '.' || c == '-' || c == ':'
-}
+use crate::{
+    AllTextCache, DabbrevPlugin, extract_all_words, is_word_char, strip_leading_nonword, ui_popup,
+};
 
 fn is_match(word: &str, prefix: &str) -> bool {
     word.len() > prefix.len() && word.starts_with(prefix)
