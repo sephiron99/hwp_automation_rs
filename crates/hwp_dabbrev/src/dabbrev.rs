@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::collections::HashSet;
 
 use hwp_addon::{debug::log, text_edit::HwpEditExt};
 use hwp_core::{
@@ -11,181 +7,25 @@ use hwp_core::{
 };
 use winsafe::HWND;
 
-use crate::{
-    AllTextCache, DabbrevPlugin, extract_all_words, is_word_char, strip_leading_nonword, ui_popup,
-};
+use crate::{DabbrevPlugin, extract_all_words, is_word_char, strip_leading_nonword, ui_popup};
 
 fn is_match(word: &str, prefix: &str) -> bool {
     word.len() > prefix.len() && word.starts_with(prefix)
 }
 
-/// 직전 입력(space 등)과 undo 레코드가 병합되지 않도록, 캐럿 위치를 빈 범위로
-/// 선택해 undo 경계를 만든 뒤 삽입한다. next-word 모드에서 후속 undo()가 캐럿
-/// 앞 공백까지 함께 지우는 것을 막는다(매 삽입을 독립 undo 단위로 유지).
-fn insert_text_break_undo(hwp: &HwpObject, text: &str) -> hwp_core::error::Result<()> {
-    let (_, para, pos) = hwp.get_pos()?;
-    let _ = hwp.select_text(para, pos, para, pos)?;
-    hwp.insert_text(text)
-}
-
-/// 현재 활성 문서의 캐시 키.
-///
-/// `HwpObject.Path`를 그대로 사용한다. 저장되지 않은 문서는 빈 문자열이
-/// 반환되며, 모든 unsaved 문서는 같은 키 `""`로 통합된 캐시를 공유한다.
-fn doc_key(hwp: &HwpObject) -> String {
-    hwp.path().unwrap_or_default()
-}
-
-// ── Word Cache ──
-
-#[derive(Default, Clone, Copy)]
-struct WordStat {
-    appearance: u32,
-    chosen: u32,
-}
-
-impl WordStat {
-    /// 채택빈도는 등장빈도의 10배 가중치.
-    fn score(&self) -> u32 {
-        self.appearance + 10 * self.chosen
-    }
-}
-
-pub(crate) struct WordCache {
-    entries: HashMap<String, WordStat>,
-}
-
-impl WordCache {
-    fn new() -> Self {
-        Self {
-            entries: HashMap::new(),
-        }
-    }
-
-    fn populate_from(&mut self, words: &[String]) {
-        for w in words {
-            self.entries.entry(w.clone()).or_default().appearance += 1;
-        }
-    }
-
-    fn candidates(&self, prefix: &str) -> Vec<String> {
-        let mut items: Vec<(&String, &WordStat)> = self
-            .entries
-            .iter()
-            .filter(|(w, _)| is_match(w, prefix))
-            .collect();
-        items.sort_by(|a, b| b.1.score().cmp(&a.1.score()));
-        items.into_iter().map(|(w, _)| w.clone()).collect()
-    }
-
-    fn record(&mut self, word: &str) {
-        self.entries.entry(word.to_string()).or_default().chosen += 1;
-    }
-}
-
-// ── State ──
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ExpansionPhase {
-    /// next-word 모드 전용: all_text_cache에서 context_word 다음 단어를
-    /// 한 번에 모두 수집하는 단계.
-    AllTextCache,
-    /// 캐시 소진 — 다음 fetch에서 rebuild 호출.
-    NeedsReextract,
-    /// 모든 소스 소진.
-    Done,
-}
-
-pub(crate) struct DabbrevState {
-    /// 이 state가 만들어진 문서의 키. 호출 시 doc_key가 달라지면 state는 폐기.
-    doc_key: String,
-    /// next-word 모드에서는 빈 문자열.
-    prefix: String,
-    /// next-word 모드일 때의 직전 단어.
-    context_word: Option<String>,
-    candidates: Vec<String>,
-    current_index: usize,
-    seen: HashSet<String>,
-    phase: ExpansionPhase,
-}
-
-/// phase에 따라 후보를 추가로 채운다. 새 후보가 하나라도 들어오면 true.
-///
-/// popup 콜백('static 클로저)에서도 호출해야 하므로 `&self` 대신
-/// all_text_caches 셀을 직접 받는 자유 함수로 둔다.
-fn fetch_more_into(
-    all_text_caches: &RefCell<Option<HashMap<String, AllTextCache>>>,
+/// 후보를 삽입한다. prefix가 있으면 교체하고, next-word 모드에서는 직전
+/// 입력(space 등)과 undo 레코드가 병합되지 않도록 빈 범위를 선택한다.
+fn insert_candidate(
     hwp: &HwpObject,
-    s: &mut DabbrevState,
-) -> hwp_core::error::Result<bool> {
-    let prev_len = s.candidates.len();
-    let key = s.doc_key.clone();
-    loop {
-        match s.phase {
-            ExpansionPhase::AllTextCache => {
-                // next-word 전용: cache.words에서 context_word 바로 뒤에 나오는
-                // 단어를 등장 순서대로(중복 제거) 한 번에 모두 모은다.
-                {
-                    let caches = all_text_caches.borrow();
-                    if let Some(cache) = caches.as_ref().and_then(|m| m.get(&key))
-                        && let Some(ref cw) = s.context_word
-                    {
-                        for pair in cache.words.windows(2) {
-                            if &pair[0] == cw && s.seen.insert(pair[1].clone()) {
-                                s.candidates.push(pair[1].clone());
-                            }
-                        }
-                    }
-                }
-                s.phase = ExpansionPhase::NeedsReextract;
-                if s.candidates.len() > prev_len {
-                    return Ok(true);
-                }
-                // 캐시에 후보가 전혀 없으면 같은 호출에서 곧장 rebuild 단계로.
-            }
-            ExpansionPhase::NeedsReextract => {
-                let added = {
-                    let mut caches = all_text_caches.borrow_mut();
-                    let map = caches.get_or_insert_with(HashMap::new);
-                    map.entry(key.clone())
-                        .or_insert_with(AllTextCache::new)
-                        .rebuild(hwp)?
-                };
-                log(
-                    "dabbrev",
-                    &format!("reextract[{key:?}]: {} added words", added.len()),
-                );
-                let caches = all_text_caches.borrow();
-                let cache = caches.as_ref().and_then(|m| m.get(&key));
-                if let Some(ref cw) = s.context_word {
-                    // next-word 모드: 새로 들어온 단어가 cw 뒤에 나오는 경우만 후보.
-                    if let Some(cache) = cache {
-                        let added_set: HashSet<&str> = added.iter().map(|s| s.as_str()).collect();
-                        for pair in cache.words.windows(2) {
-                            if &pair[0] == cw && added_set.contains(pair[1].as_str()) {
-                                let cand = pair[1].clone();
-                                if s.seen.insert(cand.clone()) {
-                                    s.candidates.push(cand);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // prefix 모드: rebuild 후 전체 cache.words에서
-                    // prefix 매칭 + 아직 seen에 안 들어간 것 모두 추가 (spec).
-                    if let Some(cache) = cache {
-                        for w in &cache.words {
-                            if is_match(w, &s.prefix) && s.seen.insert(w.clone()) {
-                                s.candidates.push(w.clone());
-                            }
-                        }
-                    }
-                }
-                s.phase = ExpansionPhase::Done;
-                return Ok(s.candidates.len() > prev_len);
-            }
-            ExpansionPhase::Done => return Ok(s.candidates.len() > prev_len),
-        }
+    prefix: Option<&str>,
+    word: &str,
+) -> hwp_core::error::Result<()> {
+    if let Some(prefix) = prefix {
+        hwp.replace_word_before(prefix, word)
+    } else {
+        let (_, para, pos) = hwp.get_pos()?;
+        let _ = hwp.select_text(para, pos, para, pos)?;
+        hwp.insert_text(word)
     }
 }
 
@@ -225,63 +65,11 @@ impl DabbrevPlugin {
         Ok((before, after))
     }
 
-    /// 커서 바로 앞의 `prefix` 글자들을 `replacement`로 교체합니다.
-    fn replace_word(
-        &self,
-        hwp: &HwpObject,
-        prefix: &str,
-        replacement: &str,
-    ) -> hwp_core::error::Result<()> {
-        log(
-            "dabbrev",
-            &format!("replace_word: prefix={prefix:?} -> {replacement:?}"),
-        );
-        hwp.replace_word_before(prefix, replacement)
-    }
-
-    /// 지정 문서(key)의 캐시가 없으면 text_segments()로 부트스트랩한다.
-    fn bootstrap_if_needed(&self, hwp: &HwpObject, key: &str) -> hwp_core::error::Result<()> {
-        let exists = self
-            .word_caches
-            .borrow()
-            .as_ref()
-            .is_some_and(|m| m.contains_key(key));
-        if exists {
-            return Ok(());
-        }
-        let words = extract_all_words(hwp)?;
-        log(
-            "dabbrev",
-            &format!("bootstrap[{key:?}]: {} words", words.len()),
-        );
-        let mut wc = WordCache::new();
-        wc.populate_from(&words);
-
-        self.word_caches
-            .borrow_mut()
-            .get_or_insert_with(HashMap::new)
-            .insert(key.to_string(), wc);
-
-        let mut atc_caches = self.all_text_caches.borrow_mut();
-        let map = atc_caches.get_or_insert_with(HashMap::new);
-        map.entry(key.to_string())
-            .or_insert_with(AllTextCache::new)
-            .words = words;
-        Ok(())
-    }
-
-    /// phase에 따라 후보를 추가로 채운다. 새 후보가 하나라도 들어오면 true.
-    fn fetch_more(&self, hwp: &HwpObject, s: &mut DabbrevState) -> hwp_core::error::Result<bool> {
-        fetch_more_into(&self.all_text_caches, hwp, s)
-    }
-
     pub fn expand(&self, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
-        let key = doc_key(hwp);
-        self.bootstrap_if_needed(hwp, &key)?;
-
+        let words = extract_all_words(hwp)?;
         let (line, char_after) = self.read_caret_context(hwp)?;
         // HWP GetText는 trailing 제어 문자(paragraph marker 등)를 포함할 수 있다.
-        let line = line.trim_end_matches(|c: char| c.is_control()).to_string();
+        let line = line.trim_end_matches(|c: char| c.is_control());
         let at_word = line.chars().last().is_some_and(is_word_char);
 
         let prefix = if at_word {
@@ -289,7 +77,7 @@ impl DabbrevPlugin {
                 .next()
                 .map(strip_leading_nonword)
                 .filter(|w| !w.is_empty())
-                .map(|w| w.to_string())
+                .map(str::to_string)
         } else {
             None
         };
@@ -297,269 +85,87 @@ impl DabbrevPlugin {
         log(
             "dabbrev",
             &format!(
-                "doc_key={key:?}, prefix={prefix:?}, at_word={at_word}, char_after={char_after:?}"
+                "{} words, prefix={prefix:?}, at_word={at_word}, char_after={char_after:?}",
+                words.len()
             ),
         );
 
-        let mut state = self.state.borrow_mut();
-
-        // 문서가 바뀌었으면 state 폐기 (다른 문서의 cycle을 이어갈 수 없음).
-        if let Some(ref s) = *state
-            && s.doc_key != key
-        {
-            log("dabbrev", "doc switched — discarding state");
-            *state = None;
-        }
-
-        // 연속 호출: 현재 line의 끝 단어가 직전 확장 결과와 일치하면 다음 후보로 cycle.
-        if let Some(ref mut s) = *state {
-            if let Some(ref p) = prefix
-                && s.candidates.get(s.current_index) == Some(p)
-            {
-                let next = s.current_index + 1;
-                if next < s.candidates.len() {
-                    s.current_index = next;
-                } else if self.fetch_more(hwp, s)? {
-                    s.current_index = next;
-                } else {
-                    s.current_index = 0;
-                }
-                let word = s.candidates[s.current_index].clone();
-                let prev_word = p.clone();
-                log(
-                    "dabbrev",
-                    &format!(
-                        "cycle -> {word:?} ({}/{})",
-                        s.current_index + 1,
-                        s.candidates.len()
-                    ),
-                );
-                drop(state);
-                self.replace_word(hwp, &prev_word, &word)?;
-                self.run_popup_session(hwp, &word, true)?;
-                return Ok(true);
-            }
-            // cycle이 아니다 — 이전 확장은 확정된 것으로 보고 채택빈도 기록.
-            if s.context_word.is_none()
-                && let Some(accepted) = s.candidates.get(s.current_index).cloned()
-            {
-                self.word_caches
-                    .borrow_mut()
-                    .get_or_insert_with(HashMap::new)
-                    .entry(key.clone())
-                    .or_insert_with(WordCache::new)
-                    .record(&accepted);
-                log("dabbrev", &format!("recorded chosen: {accepted:?}"));
-            }
-        }
-
-        if let Some(prefix) = prefix {
-            // ── prefix 모드 ──
-            let mut seen = HashSet::new();
-            let mut candidates: Vec<String> = Vec::new();
-
-            // 1. word_cache (score 내림차순)
-            let cached: Vec<String> = self
-                .word_caches
-                .borrow()
-                .as_ref()
-                .and_then(|m| m.get(&key))
-                .map(|c| c.candidates(&prefix))
-                .unwrap_or_default();
-            for w in cached {
-                if seen.insert(w.clone()) {
-                    candidates.push(w);
-                }
-            }
-
-            let mut s = DabbrevState {
-                doc_key: key.clone(),
-                prefix: prefix.clone(),
-                context_word: None,
-                candidates,
-                current_index: 0,
-                seen,
-                // prefix 모드: word_cache로 prefix 매칭은 모두 제시되므로,
-                // 추가 요청 시 곧장 rebuild로 이행 (순차 스캔 단계 없음).
-                phase: ExpansionPhase::NeedsReextract,
-            };
-
-            // 캐시조차 비어있으면 후속 phase까지 즉시 밀어본다.
-            while s.candidates.is_empty() && self.fetch_more(hwp, &mut s)? {}
-            if s.candidates.is_empty() {
-                *state = None;
-                log("dabbrev", "매칭 없음");
-                return Ok(true);
-            }
-
-            let expansion = s.candidates[0].clone();
-            log(
-                "dabbrev",
-                &format!(
-                    "expand {prefix:?} -> {expansion:?} (1/{})",
-                    s.candidates.len()
-                ),
-            );
-            self.replace_word(hwp, &prefix, &expansion)?;
-            *state = Some(s);
-            drop(state);
-            self.run_popup_session(hwp, &expansion, true)?;
-            Ok(true)
+        // 두 모드 모두 문서 등장 순서를 유지하며 중복 후보를 제거한다.
+        let mut seen = HashSet::new();
+        let candidates: Vec<String> = if let Some(prefix) = prefix.as_deref() {
+            words
+                .iter()
+                .filter(|word| is_match(word, prefix))
+                .filter(|word| seen.insert(word.as_str()))
+                .cloned()
+                .collect()
         } else {
-            // ── next-word 모드 ──
-            // 캐럿 바로 뒤에 단어가 붙어 있으면(단어 중간) next-word 확장하지 않는다.
+            // 캐럿 바로 뒤에 단어가 붙어 있으면 next-word 확장하지 않는다.
             if char_after.is_some_and(is_word_char) {
-                *state = None;
                 log("dabbrev", "next-word: 캐럿 뒤가 단어 — 억제");
                 return Ok(false);
             }
             let trimmed = line.trim_end_matches(|c: char| !is_word_char(c));
-            let prev_word = trimmed
+            let Some(prev_word) = trimmed
                 .rsplit(|c: char| !is_word_char(c))
                 .next()
                 .map(strip_leading_nonword)
                 .filter(|w| !w.is_empty())
-                .map(|w| w.to_string());
-
-            let prev_word = match prev_word {
-                Some(w) => w,
-                None => {
-                    *state = None;
-                    return Ok(false);
-                }
+            else {
+                return Ok(false);
             };
 
             log("dabbrev", &format!("next-word mode: context={prev_word:?}"));
+            words
+                .windows(2)
+                .filter(|pair| pair[0] == prev_word)
+                .map(|pair| &pair[1])
+                .filter(|word| seen.insert(word.as_str()))
+                .cloned()
+                .collect()
+        };
 
-            let mut s = DabbrevState {
-                doc_key: key.clone(),
-                prefix: String::new(),
-                context_word: Some(prev_word.clone()),
-                candidates: Vec::new(),
-                current_index: 0,
-                seen: HashSet::new(),
-                phase: ExpansionPhase::AllTextCache,
-            };
-
-            while s.candidates.is_empty() && self.fetch_more(hwp, &mut s)? {}
-            if s.candidates.is_empty() {
-                *state = None;
-                log("dabbrev", "next-word: 매칭 없음");
-                return Ok(true);
-            }
-
-            let expansion = s.candidates[0].clone();
-            log(
-                "dabbrev",
-                &format!(
-                    "next-word {prev_word:?} -> {expansion:?} (1/{})",
-                    s.candidates.len()
-                ),
-            );
-            *state = Some(s);
-            drop(state);
-
-            // undo 경계를 만들며 삽입(직전 space와 레코드 병합 방지).
-            insert_text_break_undo(hwp, &expansion)?;
-            self.run_popup_session(hwp, &expansion, false)?;
-            Ok(true)
+        if candidates.is_empty() {
+            log("dabbrev", "매칭 없음");
+            return Ok(true);
         }
+
+        self.run_popup_session(hwp, prefix, candidates)?;
+        Ok(true)
     }
 
-    /// popup 세션 실행. self.state는 Some이어야 한다 (호출자가 보장).
-    ///
-    /// `initial_inserted` — popup 진입 직전 호출자가 문서에 넣은 첫 candidate.
-    /// `mode_is_prefix` — prefix 모드인지(true), next-word 모드인지(false).
-    /// 종료 후 state는 항상 None으로 정리된다.
+    /// 완성된 후보 목록으로 popup을 실행한다. 목록과 선택 상태는 이 세션에서만
+    /// 유지하며, 다음 액션에서는 문서에서 다시 구성한다.
     fn run_popup_session(
         &self,
         hwp: &HwpObject,
-        initial_inserted: &str,
-        mode_is_prefix: bool,
+        prefix: Option<String>,
+        candidates: Vec<String>,
     ) -> hwp_core::error::Result<()> {
-        let state = match self.state.borrow_mut().take() {
-            Some(s) => s,
-            None => return Ok(()),
+        let Some(first) = candidates.first() else {
+            return Ok(());
         };
-        let start_index = state.current_index;
-        let initial = state.candidates.clone();
-        let original_prefix = state.prefix.clone();
-        let session_doc_key = state.doc_key.clone();
+        log(
+            "dabbrev",
+            &format!("expand {prefix:?} -> {first:?} (1/{})", candidates.len()),
+        );
+        insert_candidate(hwp, prefix.as_deref(), first)?;
 
-        // 콜백은 winsafe 이벤트('static 클로저)에 저장되므로 참조를 캡처할 수
-        // 없다. HwpObject는 COM refcount clone으로, all_text_caches는 잠시
-        // 꺼내 Rc로 공유했다가 popup 종료 후 되돌리는 방식으로 소유값만 넘긴다.
-        let state_cell: Rc<RefCell<DabbrevState>> = Rc::new(RefCell::new(state));
-        let atc: Rc<RefCell<Option<HashMap<String, AllTextCache>>>> =
-            Rc::new(RefCell::new(self.all_text_caches.take()));
-        let last_inserted: Rc<RefCell<String>> =
-            Rc::new(RefCell::new(initial_inserted.to_string()));
-
-        let fetch_state = state_cell.clone();
-        let fetch_atc = atc.clone();
-        let fetch_hwp = hwp.clone();
-        let fetch_cb = move || -> Vec<String> {
-            let mut s = fetch_state.borrow_mut();
-            let before = s.candidates.len();
-            let _ = fetch_more_into(&fetch_atc, &fetch_hwp, &mut s);
-            s.candidates[before..].to_vec()
-        };
-
-        let replace_state = state_cell.clone();
-        let replace_last = last_inserted.clone();
+        // winsafe 이벤트는 'static 클로저이므로 HwpObject와 prefix를 소유한다.
+        // 후보를 바꿀 때마다 직전 삽입을 되돌려 undo 항목을 하나로 유지한다.
         let replace_hwp = hwp.clone();
-        // Approach A: 활성 완성의 undo 항목을 항상 1개로 유지한다. 후보를 옮길 때마다
-        // 직전 삽입을 undo()로 되돌린 뒤 새 후보를 재삽입한다(누적 방지).
-        let replace_cb = move |sel: usize| {
-            let new_word = {
-                let st = replace_state.borrow();
-                if sel == st.current_index {
-                    return; // 같은 후보 → no-op (불필요한 깜빡임 방지)
-                }
-                match st.candidates.get(sel).cloned() {
-                    Some(w) => w,
-                    None => return,
-                }
-            };
-            let _ = replace_hwp.undo(); // 직전 표시 단어를 "확장 직전" 상태로 되돌림
-            if mode_is_prefix {
-                let _ = replace_hwp.replace_word_before(&original_prefix, &new_word);
-            } else {
-                // next-word도 undo 경계를 만들며 재삽입 — 매 undo()가 후보만
-                // 되돌리고 캐럿 앞 공백은 보존한다.
-                let _ = insert_text_break_undo(&replace_hwp, &new_word);
-            }
-            replace_state.borrow_mut().current_index = sel;
-            *replace_last.borrow_mut() = new_word;
+        let replace_cb = move |word: &str| {
+            let _ = replace_hwp.undo();
+            let _ = insert_candidate(&replace_hwp, prefix.as_deref(), word);
         };
 
         let forward_target = HWND::GetForegroundWindow();
-        let outcome = ui_popup::show(&initial, start_index, fetch_cb, replace_cb, forward_target);
-
-        // 꺼냈던 캐시 복귀. winsafe가 창 파괴 시 이벤트 클로저를 해제하므로
-        // try_unwrap이 정상 경로다(clone 폴백은 방어용).
-        *self.all_text_caches.borrow_mut() = Rc::try_unwrap(atc)
-            .map(RefCell::into_inner)
-            .unwrap_or_else(|rc| rc.borrow().clone());
-
-        let last = last_inserted.borrow().clone();
-        match outcome {
-            ui_popup::Outcome::Committed => {
-                log("dabbrev", &format!("popup committed: {last:?}"));
-                self.word_caches
-                    .borrow_mut()
-                    .get_or_insert_with(HashMap::new)
-                    .entry(session_doc_key)
-                    .or_insert_with(WordCache::new)
-                    .record(&last);
-                *self.state.borrow_mut() = None;
-            }
+        match ui_popup::show(candidates, replace_cb, forward_target) {
+            ui_popup::Outcome::Committed => log("dabbrev", "popup committed"),
             ui_popup::Outcome::Cancelled => {
-                log("dabbrev", &format!("popup cancelled: undo from {last:?}"));
-                // 활성 완성의 단일 undo 항목을 되돌려 확장 직전 상태로 복원
-                // (prefix 모드 → 원래 prefix, next-word → 공백 뒤 원상태).
+                log("dabbrev", "popup cancelled");
+                // prefix 모드 → 원래 prefix, next-word → 공백 뒤 원상태.
                 let _ = hwp.undo();
-                *self.state.borrow_mut() = None;
             }
         }
         Ok(())

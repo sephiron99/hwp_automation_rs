@@ -47,7 +47,7 @@ struct PendingKey {
 /// popup 한 세션의 상태. 이벤트 클로저들이 `Rc`로 공유하며, 가변성은 전부
 /// Cell/RefCell(winsafe 이벤트 클로저는 `Fn`이라 내부 가변성 필수).
 struct Session {
-    items: RefCell<Vec<String>>,
+    items: Vec<String>,
     sel: Cell<usize>,
     /// 스크롤 오프셋 — 첫 표시 행의 item index.
     top: Cell<usize>,
@@ -60,25 +60,18 @@ struct Session {
     /// 키 분기에서 DestroyWindow 직전에 set. DestroyWindow가 동기 발생시키는
     /// WM_ACTIVATE(WA_INACTIVE)가 outcome을 덮어쓰지 못하도록 가드.
     explicit_close: Cell<bool>,
-    exhausted: Cell<bool>,
-    fetch_more: RefCell<Box<dyn FnMut() -> Vec<String>>>,
-    replace: RefCell<Box<dyn FnMut(usize)>>,
+    replace: RefCell<Box<dyn FnMut(&str)>>,
     pending: RefCell<Option<PendingKey>>,
 }
 
 /// popup을 띄우고 사용자 조작이 끝날 때까지 블록한다.
 ///
-/// - `initial` — 첫 batch candidates. `start_index`는 첫 sel 위치 (preview
-///   replace는 이미 호출자가 수행했음).
-/// - `fetch_more` — 목록 끝에서 사용자가 더 내려갈 때 호출. 빈 Vec 반환 시
-///   더 호출하지 않음.
-/// - `replace` — sel이 바뀔 때마다 호출. 호출자가 문서에 preview replace 수행.
+/// - `candidates` — 전체 후보 목록. 첫 후보의 preview 삽입은 호출자가 수행했음.
+/// - `replace` — 선택이 바뀔 때 해당 단어로 호출. 문서에 preview replace 수행.
 /// - `forward_target` — 확정/취소 후 키를 forward할 윈도우 (HWP 메인).
 pub fn show(
-    initial: &[String],
-    start_index: usize,
-    fetch_more: impl FnMut() -> Vec<String> + 'static,
-    replace: impl FnMut(usize) + 'static,
+    candidates: Vec<String>,
+    replace: impl FnMut(&str) + 'static,
     forward_target: Option<w::HWND>,
 ) -> Outcome {
     // hook이 단축키를 가로채지 않도록 양보 — popup이 직접 Ctrl+/ 처리.
@@ -86,13 +79,11 @@ pub fn show(
 
     // run_main은 창 생성 실패 시 panic한다. FFI 경계(HWP의 DoAction 호출)를
     // unwind가 넘지 않도록 여기서 잡아 Cancelled로 처리.
-    let (outcome, pending) = catch_unwind(AssertUnwindSafe(|| {
-        run_popup(initial, start_index, fetch_more, replace)
-    }))
-    .unwrap_or_else(|_| {
-        log("ui_popup", "popup panic — cancelled 처리");
-        (Outcome::Cancelled, None)
-    });
+    let (outcome, pending) = catch_unwind(AssertUnwindSafe(|| run_popup(candidates, replace)))
+        .unwrap_or_else(|_| {
+            log("ui_popup", "popup panic — cancelled 처리");
+            (Outcome::Cancelled, None)
+        });
 
     if let (Some(target), Some(k)) = (&forward_target, pending) {
         hwp_addon::keyfwd::forward_key(target.ptr() as usize, k.wparam, k.lparam, k.char_wparam);
@@ -113,22 +104,18 @@ pub fn show(
 
 /// 창 생성 + 이벤트 등록 + 동기 펌프. 종료 시 (outcome, forward할 키) 반환.
 fn run_popup(
-    initial: &[String],
-    start_index: usize,
-    fetch_more: impl FnMut() -> Vec<String> + 'static,
-    replace: impl FnMut(usize) + 'static,
+    candidates: Vec<String>,
+    replace: impl FnMut(&str) + 'static,
 ) -> (Outcome, Option<PendingKey>) {
     let anchor = try_anchor();
     let se = Rc::new(Session {
-        items: RefCell::new(initial.to_vec()),
-        sel: Cell::new(start_index.min(initial.len().saturating_sub(1))),
+        items: candidates,
+        sel: Cell::new(0),
         top: Cell::new(0),
         row_h: Cell::new(0),
         outcome: Cell::new(Outcome::Cancelled),
         got_active: Cell::new(false),
         explicit_close: Cell::new(false),
-        exhausted: Cell::new(false),
-        fetch_more: RefCell::new(Box::new(fetch_more)),
         replace: RefCell::new(Box::new(replace)),
         pending: RefCell::new(None),
     });
@@ -194,9 +181,9 @@ fn run_popup(
     wnd.on().wm_l_button_down(move |p| {
         let row_h = se2.row_h.get().max(1);
         let idx = se2.top.get() + (p.coords.y.max(0) / row_h) as usize;
-        if idx < se2.items.borrow().len() && idx != se2.sel.get() {
+        if idx < se2.items.len() && idx != se2.sel.get() {
             se2.sel.set(idx);
-            (se2.replace.borrow_mut())(idx);
+            (se2.replace.borrow_mut())(&se2.items[idx]);
             let _ = wnd2.hwnd().InvalidateRect(None, true);
         }
         Ok(())
@@ -288,39 +275,21 @@ fn drain_char(hwnd: &w::HWND) -> Option<usize> {
 }
 
 fn cycle(se: &Session, hwnd: &w::HWND, up: bool) {
-    let count = se.items.borrow().len();
-    if count == 0 {
+    let count = se.items.len();
+    if count <= 1 {
         return;
     }
     let cur = se.sel.get();
     let next = if up {
         if cur > 0 { cur - 1 } else { count - 1 }
+    } else if cur + 1 < count {
+        cur + 1
     } else {
-        // ↓ 또는 Ctrl+/
-        if cur + 1 < count {
-            cur + 1
-        } else if try_fetch_more_append(se) {
-            cur + 1
-        } else {
-            0
-        }
+        0
     };
     se.sel.set(next);
-    (se.replace.borrow_mut())(next);
+    (se.replace.borrow_mut())(&se.items[next]);
     let _ = hwnd.InvalidateRect(None, true);
-}
-
-fn try_fetch_more_append(se: &Session) -> bool {
-    if se.exhausted.get() {
-        return false;
-    }
-    let added = (se.fetch_more.borrow_mut())();
-    if added.is_empty() {
-        se.exhausted.set(true);
-        return false;
-    }
-    se.items.borrow_mut().extend(added);
-    true
 }
 
 /// 후보 목록을 직접 그린다. sel 행이 보이도록 top(스크롤 오프셋)도 여기서
@@ -337,7 +306,7 @@ fn paint(se: &Session, hwnd: &w::HWND) -> w::SysResult<()> {
     let rc = hwnd.GetClientRect()?;
     let visible = (((rc.bottom - rc.top) / row_h).max(1)) as usize;
 
-    let items = se.items.borrow();
+    let items = &se.items;
     let sel = se.sel.get();
     let mut top = se.top.get();
     if sel < top {
