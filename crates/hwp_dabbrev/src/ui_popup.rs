@@ -1,6 +1,7 @@
 //! Dabbrev 자동완성 popup (Win32 전용, winsafe gui 기반).
 //!
 //! 자식 컨트롤 없이 후보 목록을 직접 그리는(owner-drawn) WS_POPUP 창.
+//! 하단에는 선택 번호/전체 후보 수와 화면 밖 후보 방향(↑/↓)을 표시한다.
 //! winsafe `WindowMain::run_main()`이 동기 message pump를 돌리고, 창이
 //! 파괴되면(내부 WM_NCDESTROY → PostQuitMessage) WM_QUIT를 이 중첩 펌프가
 //! 소비하고 리턴하므로 HWP 메인 펌프에는 영향이 없다.
@@ -53,6 +54,8 @@ struct Session {
     top: Cell<usize>,
     /// wm_paint에서 실측한 행 높이(px). 첫 paint 전까지 0.
     row_h: Cell<i32>,
+    /// 하단 상태 표시줄을 제외한 후보 행 수. 클릭 판정에도 사용한다.
+    visible_rows: Cell<usize>,
     outcome: Cell<Outcome>,
     /// 처음 WM_ACTIVATE(WA_ACTIVE)를 받은 후에만 deactivate를 close 트리거로
     /// 본다. 초기 생성 시점의 transient deactivate에 즉시 닫히지 않도록.
@@ -113,6 +116,7 @@ fn run_popup(
         sel: Cell::new(0),
         top: Cell::new(0),
         row_h: Cell::new(0),
+        visible_rows: Cell::new(0),
         outcome: Cell::new(Outcome::Cancelled),
         got_active: Cell::new(false),
         explicit_close: Cell::new(false),
@@ -180,7 +184,12 @@ fn run_popup(
     let se2 = se.clone();
     wnd.on().wm_l_button_down(move |p| {
         let row_h = se2.row_h.get().max(1);
-        let idx = se2.top.get() + (p.coords.y.max(0) / row_h) as usize;
+        let row = (p.coords.y.max(0) / row_h) as usize;
+        // 상태 표시줄과 목록 아래 여백은 후보로 취급하지 않는다.
+        if p.coords.y < 0 || row >= se2.visible_rows.get() {
+            return Ok(());
+        }
+        let idx = se2.top.get() + row;
         if idx < se2.items.len() && idx != se2.sel.get() {
             se2.sel.set(idx);
             (se2.replace.borrow_mut())(&se2.items[idx]);
@@ -304,14 +313,16 @@ fn paint(se: &Session, hwnd: &w::HWND) -> w::SysResult<()> {
     se.row_h.set(row_h);
 
     let rc = hwnd.GetClientRect()?;
-    let visible = (((rc.bottom - rc.top) / row_h).max(1)) as usize;
+    let footer_top = (rc.bottom - row_h).max(rc.top);
+    let visible = ((footer_top - rc.top) / row_h) as usize;
+    se.visible_rows.set(visible);
 
     let items = &se.items;
     let sel = se.sel.get();
     let mut top = se.top.get();
     if sel < top {
         top = sel;
-    } else if sel >= top + visible {
+    } else if visible > 0 && sel >= top + visible {
         top = sel + 1 - visible;
     }
     se.top.set(top);
@@ -336,6 +347,25 @@ fn paint(se: &Session, hwnd: &w::HWND) -> w::SysResult<()> {
         hdc.SetTextColor(w::GetSysColor(fg))?;
         hdc.TextOut(2, y + 1, &items[idx])?;
     }
+
+    let footer = w::RECT {
+        left: rc.left,
+        top: footer_top,
+        right: rc.right,
+        bottom: rc.bottom,
+    };
+    let brush = w::HBRUSH::GetSysColorBrush(co::COLOR::BTNFACE)?;
+    hdc.FillRect(footer, &brush)?;
+    hdc.SetBkColor(w::GetSysColor(co::COLOR::BTNFACE))?;
+    hdc.SetTextColor(w::GetSysColor(co::COLOR::BTNTEXT))?;
+    let status = format!(
+        "후보 {}/{}{}{}",
+        (sel + 1).min(items.len()),
+        items.len(),
+        if top > 0 { "  ↑" } else { "" },
+        if end < items.len() { "  ↓" } else { "" },
+    );
+    hdc.TextOut(2, footer_top + 1, &status)?;
     Ok(())
 }
 
