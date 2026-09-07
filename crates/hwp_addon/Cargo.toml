@@ -12,7 +12,7 @@ edition = "2024"
 # crate-type = ["cdylib"]
 
 [dependencies]
-thiserror = "2.0.18"
+thiserror = "2.0.20"
 # 2. 문자열 처리 (COM BSTR <-> Rust String 변환용)
 widestring = "1.2.1"
 hwp_core = { version = "0.1.0", path = "../hwp_core" }

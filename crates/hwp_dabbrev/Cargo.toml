@@ -18,7 +18,7 @@ path = "src/lib.rs"
 hwp_addon = { path = "../hwp_addon" }
 hwp_core = { path = "../hwp_core" }
 hwp_com = { path = "../hwp_com" }
-winsafe = { version = "0.0.28", features = ["gui"] }
+winsafe = { version = "0.0.29", features = ["gui"] }
 
 [dependencies.windows]
 version = "0.62.2"
