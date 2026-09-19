@@ -1,14 +1,36 @@
 use std::collections::HashSet;
 
-use hwp_addon::{debug::log, text_edit::HwpEditExt};
+use hwp_addon::{
+    debug::log,
+    text_edit::HwpEditExt,
+    text_extract::{HwpTextExt, TextSegment},
+};
 use hwp_core::{
     hwp_obj::HwpObject,
-    ihwpobject::lib::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask},
+    ihwpobject::lib::{ScanRange, mask},
+    variant::IntoVariant,
 };
 use winsafe::HWND;
 
 use crate::{DabbrevPlugin, extract_all_words, is_word_char, strip_leading_nonword, ui_popup};
 
+/// 문서에서 추출한 `word`가 입력 중인 `prefix`를 확장할 후보인지 판정한다.
+///
+/// 다음 두 조건을 모두 만족해야 한다.
+/// - `word`가 `prefix`로 시작해야 한다. 중간에 포함된 문자열은 매칭하지 않는다.
+/// - `prefix` 뒤에 추가 내용이 있어야 한다. 이미 입력한 단어와 같은 후보는
+///   자동완성을 해도 내용이 바뀌지 않으므로 제외한다.
+///
+/// `str::len()`은 글자 수가 아닌 UTF-8 바이트 수를 반환한다. 여기서는
+/// `starts_with`로 접두사 일치도 확인하므로, 더 긴 바이트 길이라는 조건만으로
+/// 접두사 뒤에 내용이 더 있는지 판정할 수 있다. 한글도 같은 방식으로 처리한다.
+///
+/// 대소문자를 구분하며 유니코드 정규화나 한글 초성 검색은 하지 않는다.
+/// 예를 들어 `("자동완성", "자동")`은 참이고, `("자동", "자동")`과
+/// `("반자동", "자동")`, `("Rust", "rust")`는 거짓이다.
+///
+/// 빈 `prefix`에는 비어 있지 않은 모든 `word`가 매칭된다. 현재 호출부는
+/// 빈 접두사를 미리 걸러내므로, 이 함수에는 실제 입력된 접두사만 전달한다.
 fn is_match(word: &str, prefix: &str) -> bool {
     word.len() > prefix.len() && word.starts_with(prefix)
 }
@@ -30,46 +52,78 @@ fn insert_candidate(
 }
 
 impl DabbrevPlugin {
-    /// 현재 문단을 읽어 `(캐럿 앞 텍스트, 캐럿 바로 뒤 글자)`를 반환합니다.
+    /// 현재 캐럿 주변을 읽어 `(캐럿 앞 텍스트, 캐럿 바로 뒤 글자)`를 반환합니다.
     ///
-    /// `GetText`의 `ScanEpos::Current`가 캐럿에서 멈추지 않고 문단 끝까지 읽는
-    /// 경우가 있어, prefix/모드 판정이 캐럿 뒤 텍스트로 오염된다. 그래서 전체
-    /// 문단을 읽은 뒤 `GetPos`의 문단 내 문자 offset(`pos`)으로 직접 잘라낸다.
+    /// `MoveSelWordBegin`으로 앞쪽을 읽되, 공백·구두점만 선택된 경우에는
+    /// 문단 시작까지 범위를 넓혀 next-word 모드에 필요한 직전 단어도 읽는다.
+    /// 뒤쪽은 원래 위치에서 `MoveSelWordEnd`로 선택하여 첫 글자를 얻는다.
+    /// 각 방향의 기준 위치와 최종 캐럿 위치는 저장한 좌표에 `SetPos`하여 복원한다.
     fn read_caret_context(
         &self,
         hwp: &HwpObject,
     ) -> hwp_core::error::Result<(String, Option<char>)> {
-        let (_, _, pos) = hwp.get_pos()?;
-        let caret = pos.max(0) as usize;
+        hwp.call::<()>("UnSelectCtrl")?;
+        let action = hwp.h_action()?;
+        action.run("Cancel")?;
+        action.run("Cancel")?;
+        let (list, para, pos) = hwp.get_pos()?;
 
-        hwp.init_scan(
-            mask::NORMAL,
-            ScanRange::new(ScanSpos::Paragraph, ScanEpos::Paragraph),
-            0,
-            0,
-            0,
-            0,
-        )?;
-        let mut para = String::new();
-        loop {
-            let (status, text) = hwp.get_text()?;
-            match status {
-                GetTextStatus::Normal => para.push_str(&text),
-                _ => break,
+        let restore_caret = || -> hwp_core::error::Result<()> {
+            hwp.call_with(
+                "SetPos",
+                vec![
+                    list.into_variant()?,
+                    para.into_variant()?,
+                    pos.into_variant()?,
+                ],
+            )
+        };
+        let read_selection = || -> hwp_core::error::Result<String> {
+            // 문서 경계 등에서 선택 범위가 생기지 않았다면 스캔하지 않는다.
+            if hwp.get_pos()? == (list, para, pos) {
+                return Ok(String::new());
             }
-        }
-        hwp.release_scan()?;
+            let mut text = String::new();
+            for segment in
+                hwp.text_segments_with(mask::NORMAL, ScanRange::within_selection(), 0, 0, 0, 0)?
+            {
+                match segment? {
+                    TextSegment::Text(s) | TextSegment::EnterCtrl(s) => text.push_str(&s),
+                    TextSegment::ParaBreak => text.push('\n'),
+                    TextSegment::ExitCtrl => {}
+                }
+            }
+            Ok(text)
+        };
 
-        let before: String = para.chars().take(caret).collect();
-        let after = para.chars().nth(caret);
-        Ok((before, after))
+        let result: hwp_core::error::Result<_> = (|| {
+            action.run("MoveSelWordBegin")?;
+            let mut before = read_selection()?;
+            if pos > 0 && !before.chars().any(char::is_alphanumeric) {
+                // "오늘 |"에서 공백만 읽으면 prev_word를 구할 수 없다.
+                // 원래 캐럿을 기준으로 범위를 넓히고, 뒤의 공백은 그대로 보존한다.
+                restore_caret()?;
+                action.run("MoveSelParaBegin")?;
+                before = read_selection()?;
+                log("dabbrev", "직전 단어 검색: 문단 시작까지 선택 범위 확장");
+            }
+            restore_caret()?;
+            action.run("MoveSelWordEnd")?;
+            let after = read_selection()?.chars().next();
+            Ok((before, after))
+        })();
+        // 이동 또는 읽기가 실패해도 원래 위치로 복원을 시도한다.
+        let restored = restore_caret();
+        let context = result?;
+        restored?;
+        Ok(context)
     }
 
     pub fn expand(&self, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
         let words = extract_all_words(hwp)?;
         let (line, char_after) = self.read_caret_context(hwp)?;
-        // HWP GetText는 trailing 제어 문자(paragraph marker 등)를 포함할 수 있다.
-        let line = line.trim_end_matches(|c: char| c.is_control());
+        // 스캔 끝의 문단 표시는 제거하되, next-word 모드의 구분자인 탭은 보존한다.
+        let line = line.trim_end_matches(['\r', '\n']);
         let at_word = line.chars().last().is_some_and(is_word_char);
 
         let prefix = if at_word {
@@ -112,6 +166,7 @@ impl DabbrevPlugin {
                 .map(strip_leading_nonword)
                 .filter(|w| !w.is_empty())
             else {
+                log("dabbrev", "next-word: 직전 단어 없음");
                 return Ok(false);
             };
 
