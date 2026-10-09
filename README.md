@@ -12,7 +12,7 @@ SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구�
 
 - **두 가지 연동 방식**: OLE 클라이언트(`hwp_com`) / 애드인 DLL(`hwp_addon`)
 - **편의 API와 SDK 직접 사용**: 자주 쓰는 작업은 편의 API로, 그 밖의 것은 SDK method와 Action(530개 래퍼)을 그대로 호출
-- **타입 안전한 API**: `HwpError`, `HwpVer`, `ScanRange` 등 래퍼 타입으로 COM 오류를 Rust 방식으로 처리
+- **타입 안전한 API**: `HwpVer`, `ScanRange` 등 래퍼 타입을 제공하고, 한글이 `false`로 알리는 실패까지 `HwpError`로 통일해 `?`로 처리
 - **버전 감지**: 실행 중인 한글 버전(V2018 / V2022 / V2024)을 자동으로 감지
 - **WSL 지원**: WSL 환경에서 `i686-pc-windows-msvc` 크로스 컴파일 가능
 
@@ -46,11 +46,9 @@ hwp_automation_rs/
 ### 의존 관계
 
 ```
-hwp_core  ←──  hwp_com      (OLE 클라이언트 라이브러리)
-          ←──  hwp_addon     (애드인 DLL 프레임워크)
-          ←──  hello_hwp_ole (OLE 예제 바이너리)
-          ←──  hello_hwp_dll (애드인 DLL 예제)
-          ←──  hwp_dabbrev   (dabbrev 애드인)
+hwp_core  ←──  hwp_com    ←──  hello_hwp_ole  (OLE 예제 바이너리)
+          ←──  hwp_addon  ←──  hello_hwp_dll  (애드인 DLL 예제)
+                          ←──  hwp_dabbrev    (dabbrev 애드인)
 ```
 
 ---
@@ -112,7 +110,7 @@ HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
 한글이 DLL을 로드하여 내부에서 직접 실행합니다.
 
 ```rust
-use hwp_addon::{export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig}};
+use hwp_addon::{export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
 use hwp_core::ext::HwpExt;
 use hwp_core::hwp_obj::HwpObject;
 
@@ -194,6 +192,18 @@ let ok: bool = hwp.call_with("Open", vec![/* .. */])?; // 래퍼가 없는 metho
 ```
 
 파라미터가 필요한 Action은 `hwp.h_action()`과 `hwp.h_parameter_set()`으로 실행합니다. Action을 인자 없이 실행하면 한글이 대화상자를 띄울 수 있습니다.
+
+---
+
+## 구현 현황
+
+아직 SDK 전체를 덮지 못했습니다. 래퍼가 없는 기능은 위의 이름 기반 호출로 쓸 수 있습니다.
+
+| 대상 | 현황 | 자세한 내용 |
+|---|---|---|
+| SDK method | IDL의 366개 중 31개 | [`bind_progress.md`](bind_progress.md) — 미구현 목록 |
+| Action | 530개 래퍼 (파라미터 없는 실행만) | [`plan.md`](plan.md) — 전체 Action 구현 계획 |
+| 이벤트 (`IHwpObjectEvents`) | 미구현 | [`bind_progress.md`](bind_progress.md) |
 
 ---
 
