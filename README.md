@@ -239,7 +239,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드인�
 
 ## Breaking changes
 
-### 0.1.1
+### 0.2.0
 
 0.1.0에서 올리면 아래 네 가지를 고쳐야 합니다.
 
@@ -250,7 +250,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드인�
 hwp.undo()?;
 hwp.char_shape_bold()?;
 
-// 0.1.1
+// 0.2.0
 hwp.act().undo()?;
 hwp.act().char_shape_bold()?;
 ```
@@ -267,7 +267,7 @@ use hwp_core::ext::HwpExt;   // 또는 hwp_com::HwpExt
 
 **3. `hwp_core`의 모듈 경로가 바뀌었습니다.**
 
-| 0.1.0 | 0.1.1 |
+| 0.1.0 | 0.2.0 |
 |---|---|
 | `hwp_core::ihwpobject::lib` | `hwp_core::method::hwp_object` |
 | `hwp_core::ihwpobject::movepos` | `hwp_core::method::movepos` |
@@ -291,7 +291,7 @@ use hwp_core::ext::HwpExt;   // 또는 hwp_com::HwpExt
 // 0.1.0
 if !hwp.save_as(path, "HWPX", "")? { /* 실패 처리 */ }
 
-// 0.1.1
+// 0.2.0
 hwp.save_as(path, "HWPX", "")?;
 ```
 

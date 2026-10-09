@@ -1,6 +1,6 @@
 [package]
 name = "hwp_core"
-version = "0.1.1"
+version = "0.2.0"
 authors = [ "sephiron <sephiron@hanmail.net>" ]
 license = "MIT"
 edition = "2024"

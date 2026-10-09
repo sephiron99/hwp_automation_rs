@@ -1,6 +1,6 @@
 [package]
 name = "hwp_addon"
-version = "0.1.1"
+version = "0.2.0"
 authors = [ "sephiron <sephiron@hanmail.net>" ]
 license = "MIT"
 edition = "2024"
@@ -15,7 +15,7 @@ edition = "2024"
 thiserror = "2.0.20"
 # 2. 문자열 처리 (COM BSTR <-> Rust String 변환용)
 widestring = "1.2.1"
-hwp_core = { version = "0.1.1", path = "../hwp_core" }
+hwp_core = { version = "0.2.0", path = "../hwp_core" }
 chrono = "0.4"
 
 # 3. Windows API 바인딩 (Microsoft 공식 크레이트)
