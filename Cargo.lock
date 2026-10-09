@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "hello_hwp_com"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hwp_com",
  "windows",
@@ -98,7 +98,7 @@ dependencies = [
 
 [[package]]
 name = "hello_hwp_dll"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hwp_addon",
  "hwp_core",
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "hwp_addon"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "hwp_core",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "hwp_com"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hwp_core",
  "thiserror",
@@ -127,7 +127,7 @@ dependencies = [
 
 [[package]]
 name = "hwp_core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "thiserror",
@@ -137,7 +137,7 @@ dependencies = [
 
 [[package]]
 name = "hwp_dabbrev"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hwp_addon",
  "hwp_com",

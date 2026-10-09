@@ -1,6 +1,6 @@
 [package]
 name = "hwp_com"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 edition = "2024"
 
@@ -8,7 +8,7 @@ edition = "2024"
 thiserror = "2.0.20"
 # 2. 문자열 처리 (COM BSTR <-> Rust String 변환용)
 widestring = "1.2.1"
-hwp_core = { version = "0.1.0", path = "../hwp_core" }
+hwp_core = { version = "0.1.1", path = "../hwp_core" }
 
 # 3. Windows API 바인딩 (Microsoft 공식 크레이트)
 [dependencies.windows]

@@ -1,12 +1,12 @@
 [package]
 name = "hello_hwp_com"
-version = "0.1.0"
+version = "0.1.1"
 license = "MIT"
 edition = "2024"
 publish = false
 
 [dependencies]
-hwp_com = { version = "0.1.0", path = "../hwp_com" }
+hwp_com = { version = "0.1.1", path = "../hwp_com" }
 
 [dependencies.windows]
 version = "0.62"
