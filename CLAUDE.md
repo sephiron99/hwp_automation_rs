@@ -50,7 +50,7 @@ Two modes of interacting with HWP:
 | 3 | `actions` | ActionTable의 Action ID별 래퍼 | `hwp.act().undo()` |
 | 4 | `ext` | 편의 API (`HwpExt` trait) | `use hwp_core::ext::HwpExt; hwp.insert_text(..)` |
 
-- 1~3층에는 정책을 넣지 않는다: 호출 하나에 COM 호출 하나, 에러는 그대로 전달. 인자를 enum으로 감싸는 것은 허용.
+- 1~3층은 호출 하나에 COM 호출 하나를 대응시키고, 실패는 공통 에러 `HwpError`로 돌려준다. SDK가 성공 여부를 `BOOL`로 돌려주면 `false`를 `HwpError::ExecutionFailed`로 바꾼다. `BOOL`이 질문의 답이면 `Result<bool>`로 둔다. 에러를 삼키거나 기본값으로 대체하지 않는다(그런 처리는 `ext`). 인자를 enum으로 감싸는 것은 허용.
 - 호출을 둘 이상 묶거나, 기본값을 정하거나, 에러를 삼키는 코드는 `ext`에 둔다. `ext`는 아래 층의 공개 API만 쓴다.
 - 구조를 건드린 뒤에는 `cargo check`와 `scripts/check_layers.sh`(역방향 참조 검사)를 실행한다.
 - 사용자 문서(`README.md`)에서는 4층을 드러내지 않고 "편의 API"와 "SDK 직접 사용(method, Action)" 두 갈래로만 설명한다.

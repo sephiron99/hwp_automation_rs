@@ -49,3 +49,15 @@ pub enum HwpError {
 
 /// 라이브러리 전용 Result 타입 별칭 (코드 타이핑을 획기적으로 줄여줍니다)
 pub type Result<T> = std::result::Result<T, HwpError>;
+
+/// SDK가 성공 여부로 돌려준 `BOOL`을 `Result`로 바꿉니다.
+///
+/// 한글 COM은 실패를 HRESULT가 아니라 `false`로 알리는 경우가 많습니다.
+/// `false`이면 `what()`을 메시지로 하는 [`HwpError::ExecutionFailed`]를 반환합니다.
+pub(crate) fn ensure(ok: bool, what: impl FnOnce() -> String) -> Result<()> {
+    if ok {
+        Ok(())
+    } else {
+        Err(HwpError::ExecutionFailed(what()))
+    }
+}

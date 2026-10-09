@@ -80,10 +80,7 @@ impl<'h> TextWalker<'h> {
         epara: u32,
         epos: u32,
     ) -> Result<Self> {
-        let ok = hwp.init_scan(option, range, spara, spos, epara, epos)?;
-        if !ok {
-            return Err(HwpError::ExecutionFailed("InitScan returned false".into()));
-        }
+        hwp.init_scan(option, range, spara, spos, epara, epos)?;
         Ok(Self {
             hwp,
             pending: Pending::None,

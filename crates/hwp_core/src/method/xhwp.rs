@@ -1,7 +1,7 @@
 //! SDK `IXHwp*` — 문서·창·툴바 등 하위 객체의 method/property binding
 //!
 //! SDK 참고: HwpAutomation_2504.pdf, HwpObject.tlb.IDL
-use crate::error::Result;
+use crate::error::{Result, ensure};
 use crate::variant::IntoVariant;
 
 // =========================================================================
@@ -247,15 +247,17 @@ impl XHwpToolbarLayout {
         self.call_with("GetToolbar", vec![name.into_variant()?])
     }
 
-    pub fn delete_toolbar(&self, name: &str) -> Result<bool> {
-        self.call_with("DeleteToolbar", vec![name.into_variant()?])
+    pub fn delete_toolbar(&self, name: &str) -> Result<()> {
+        let ok: bool = self.call_with("DeleteToolbar", vec![name.into_variant()?])?;
+        ensure(ok, || format!("DeleteToolbar({name:?})"))
     }
 
-    pub fn show_toolbar(&self, name: &str, show: bool) -> Result<bool> {
-        self.call_with(
+    pub fn show_toolbar(&self, name: &str, show: bool) -> Result<()> {
+        let ok: bool = self.call_with(
             "ShowToolbar",
             vec![name.into_variant()?, show.into_variant()?],
-        )
+        )?;
+        ensure(ok, || format!("ShowToolbar({name:?}, {show})"))
     }
 
     /// 메뉴 버튼을 생성합니다.
@@ -310,8 +312,9 @@ impl XHwpToolbar {
         )
     }
 
-    pub fn delete_button(&self, pos: i32) -> Result<bool> {
-        self.call_with("DeleteToolbarButton", vec![pos.into_variant()?])
+    pub fn delete_button(&self, pos: i32) -> Result<()> {
+        let ok: bool = self.call_with("DeleteToolbarButton", vec![pos.into_variant()?])?;
+        ensure(ok, || format!("DeleteToolbarButton({pos})"))
     }
 
     pub fn get_button(&self, pos: i32) -> Result<XHwpToolbarButton> {

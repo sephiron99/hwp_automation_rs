@@ -57,6 +57,7 @@ pub trait HwpEditExt {
     /// - 문단 시작에 도달하면 가능한 만큼만 (즉 `[0..pos)`) 선택한다.
     /// - 선택할 게 없으면 (현재 pos가 0) `Ok(false)` 반환.
     /// - 성공적으로 선택하면 `Ok(true)`.
+    /// - `SelectText`가 실패하면 에러.
     ///
     /// 내부적으로 [`get_pos`](HwpObject::get_pos) + [`select_text`](HwpObject::select_text)를
     /// 사용한다. `Move*`/`Select*` 액션이 IME 조합 상태에서 동작하지 않는
@@ -101,12 +102,13 @@ impl HwpEditExt for HwpObject {
         if start == pos {
             return Ok(false);
         }
-        self.select_text(para, start, para, pos)
+        self.select_text(para, start, para, pos)?;
+        Ok(true)
     }
 
     fn replace_chars_before(&self, prefix_chars: i32, replacement: &str) -> Result<()> {
         if prefix_chars > 0 {
-            // 선택 실패(문단 시작 등)는 무시하고 그냥 삽입한다.
+            // 선택할 게 없으면(문단 시작 등) 그냥 삽입한다.
             let _ = self.select_chars_before(prefix_chars)?;
         }
         self.insert_text(replacement)

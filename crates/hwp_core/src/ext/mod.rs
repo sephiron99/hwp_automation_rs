@@ -25,7 +25,7 @@ pub trait HwpExt {
     fn insert_text(&self, text: &str) -> Result<()>;
 
     /// 현재 문서를 hwpx(`HWPX`) 포맷으로 저장합니다. (`SaveAs(path, "HWPX", "")`)
-    fn save_as_hwpx(&self, path: &str) -> Result<bool>;
+    fn save_as_hwpx(&self, path: &str) -> Result<()>;
 
     /// 내부적으로 `HAction.GetDefault("CharShape", hset)`을 호출하여
     /// `HParameterSet.HCharShape`에서 각 필드를 읽습니다.
@@ -61,7 +61,7 @@ impl HwpExt for HwpObject {
         Ok(())
     }
 
-    fn save_as_hwpx(&self, path: &str) -> Result<bool> {
+    fn save_as_hwpx(&self, path: &str) -> Result<()> {
         self.save_as(path, "HWPX", "")
     }
 

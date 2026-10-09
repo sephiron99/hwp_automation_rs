@@ -47,7 +47,7 @@ fn insert_candidate(
         hwp.replace_word_before(prefix, word)
     } else {
         let (_, para, pos) = hwp.get_pos()?;
-        let _ = hwp.select_text(para, pos, para, pos)?;
+        hwp.select_text(para, pos, para, pos)?;
         hwp.insert_text(word)
     }
 }

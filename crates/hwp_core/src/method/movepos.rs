@@ -12,7 +12,7 @@
 //! [`MovePos`]를 노출한다. 그 결과 관련 없는 값을 넘기는 실수를 컴파일 타임에
 //! 차단할 수 있다.
 
-use crate::error::Result;
+use crate::error::{Result, ensure};
 use crate::hwp_obj::HwpObject;
 use crate::variant::IntoVariant;
 
@@ -212,11 +212,6 @@ impl HwpObject {
                 pos.into_variant()?,
             ],
         )?;
-        if !ok {
-            return Err(crate::error::HwpError::ExecutionFailed(format!(
-                "MovePos({to:?})"
-            )));
-        }
-        Ok(())
+        ensure(ok, || format!("MovePos({to:?})"))
     }
 }

@@ -24,7 +24,10 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 
 ### 어느 층에 둘 것인가
 
-- **1~3층에는 정책을 넣지 않는다.** 호출 하나가 COM 호출 하나에 대응하고, 에러는 그대로 전달한다.
+- **1~3층은 호출 하나에 COM 호출 하나를 대응시키고, 실패는 공통 에러 `HwpError`로 돌려준다.**
+  SDK가 성공 여부를 `BOOL`로 돌려주면 `false`를 `HwpError::ExecutionFailed`로 바꾼다(`error::ensure` 사용).
+  `BOOL`이 질문의 답이면(`is_new_serialize_path`, `visible` 등) `Result<bool>`로 둔다.
+  에러를 삼키거나 기본값으로 대체하지 않는다.
   인자를 enum으로 감싸는 것(`MovePos`, `ScanRange`)은 타입만 입힌 것이므로 허용한다.
 - **호출을 둘 이상 묶거나, 기본값을 정하거나, 에러를 삼키면 4층(`ext`)이다.**
 - ParameterSet은 method와 Action이 함께 쓰므로(`GetPosBySet`, `ExportStyle` 등) 어느 한쪽이 아니라 `pset`에 둔다.
@@ -113,21 +116,21 @@ Methods (hwp_obj.rs):
   path() -> Result<String>
   get_text_file(format, save_block) -> Result<String>
   set_text_file(data, format, option) -> Result<i32>
-  save_as(path, format, arg) -> Result<bool>
-  init_scan(option, range, spara, spos, epara, epos) -> Result<bool>
+  save_as(path, format, arg) -> Result<()>
+  init_scan(option, range, spara, spos, epara, epos) -> Result<()>
   get_text() -> Result<(GetTextStatus, String)>
   release_scan() -> Result<()>
   get_pos() -> Result<(i32, i32, i32)>
-  select_text(spara, spos, epara, epos) -> Result<bool>
+  select_text(spara, spos, epara, epos) -> Result<()>
   key_indicator() -> Result<KeyIndicatorInfo>
   move_pos(to: MovePos) -> Result<()>
 
 + actions/mod.rs impl:
-  act() -> Act<'_>            (Action 래퍼 핸들: hwp.act().undo()?)
+  act() -> Act<'_>            (Action 래퍼 핸들: hwp.act().undo()?, hwp.act().run("ActionId")?)
 
 + ext::HwpExt trait (use hwp_core::ext::HwpExt 필요):
   insert_text(text: &str) -> Result<()>
-  save_as_hwpx(path: &str) -> Result<bool>
+  save_as_hwpx(path: &str) -> Result<()>
   current_char_shape() -> Result<CharShape>
   current_para_shape() -> Result<ParaShape>
 ```
@@ -245,8 +248,8 @@ XHwpToolbarLayout  - 툴바 레이아웃 관리
   create_toolbar(name, style) -> XHwpToolbar
   create_toolbar_button(name, action_id, style) -> XHwpToolbarButton
   get_toolbar(name) -> XHwpToolbar
-  delete_toolbar(name) -> bool
-  show_toolbar(name, show) -> bool
+  delete_toolbar(name) -> ()
+  show_toolbar(name, show) -> ()
   create_menu_button(name, action_id, style) -> XHwpToolbarMenuButton
   get_toolbox_toolbar() -> XHncToolBoxToolbar
   change_serialize_path(path)
@@ -325,6 +328,7 @@ mod mask  { NORMAL=0x00, CHAR=0x01, INLINE=0x02, CTRL=0x04 }
 
 모두 `impl Act<'_>` 블록에 있고, `hwp.act()`로 얻은 핸들에서 호출한다.
 본문은 전부 `self.0.h_action()?.run("ActionId")` 한 형태다.
+전용 래퍼가 없는 Action은 `hwp.act().run("ActionId")`로 실행한다.
 
 | 모듈 | 파일 | 메서드 수 |
 |------|------|---------|

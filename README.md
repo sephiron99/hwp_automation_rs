@@ -188,7 +188,7 @@ hwp.act().char_shape_bold()?;   // Action ID "CharShapeBold"
 래퍼가 아직 없는 것은 이름으로 직접 호출할 수 있습니다.
 
 ```rust
-hwp.run("FileNew")?;                                  // 래퍼가 없는 Action
+hwp.act().run("FileNew")?;                            // 래퍼가 없는 Action
 let n: i32 = hwp.get("PageCount")?;                   // 래퍼가 없는 property
 let ok: bool = hwp.call_with("Open", vec![/* .. */])?; // 래퍼가 없는 method
 ```
@@ -224,6 +224,68 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드인�
 | `HAction` | 액션 실행기 (`run`, `execute`, `get_default`, `popup_dialog`) |
 | `Act` | Action 래퍼 핸들 (`hwp.act()`) |
 | `HwpExt` | 편의 API trait |
+
+---
+
+## Breaking changes
+
+### 0.1.1
+
+0.1.0에서 올리면 아래 네 가지를 고쳐야 합니다.
+
+**1. Action 호출은 `hwp.act()`를 거칩니다.**
+
+```rust
+// 0.1.0
+hwp.undo()?;
+hwp.char_shape_bold()?;
+
+// 0.1.1
+hwp.act().undo()?;
+hwp.act().char_shape_bold()?;
+```
+
+`select()`, `move_word_begin()`을 포함해 Action ID에 대응하는 메서드 전부가 해당됩니다. `hwp.get_pos()` 같은 SDK method는 그대로입니다.
+
+**2. 편의 API는 `HwpExt` trait을 가져와야 쓸 수 있습니다.**
+
+`insert_text`, `save_as_hwpx`, `current_char_shape`, `current_para_shape`가 해당됩니다.
+
+```rust
+use hwp_core::ext::HwpExt;   // 또는 hwp_com::HwpExt
+```
+
+**3. `hwp_core`의 모듈 경로가 바뀌었습니다.**
+
+| 0.1.0 | 0.1.1 |
+|---|---|
+| `hwp_core::ihwpobject::lib` | `hwp_core::method::hwp_object` |
+| `hwp_core::ihwpobject::movepos` | `hwp_core::method::movepos` |
+| `hwp_core::ihwpobject::{CharShape, ParaShape}` | `hwp_core::ext::{CharShape, ParaShape}` |
+| `hwp_core::hwp_types` | `hwp_core::method::xhwp` |
+| `hwp_core::h_action::HAction` | `hwp_core::method::h_action::HAction` |
+| `hwp_core::h_action::{HParameterSet, HCharShape, HParaShape, HInsertText}` | `hwp_core::pset::{..}` |
+
+**4. 성공 여부를 `bool`로 돌려주던 메서드가 `Result<()>`를 돌려줍니다.**
+
+한글이 `false`(실패)를 돌려주면 `Ok(false)` 대신 `Err(HwpError::ExecutionFailed)`가 됩니다. 반환값을 검사하던 코드는 `?`로 바꾸면 됩니다.
+
+| 대상 | 메서드 |
+|---|---|
+| `HwpObject` | `save_as`, `init_scan`, `select_text` |
+| `HwpExt` | `save_as_hwpx` |
+| `XHwpToolbarLayout` | `delete_toolbar`, `show_toolbar` |
+| `XHwpToolbar` | `delete_button` |
+
+```rust
+// 0.1.0
+if !hwp.save_as(path, "HWPX", "")? { /* 실패 처리 */ }
+
+// 0.1.1
+hwp.save_as(path, "HWPX", "")?;
+```
+
+`key_indicator`의 실패도 `ComError`가 아니라 `ExecutionFailed`로 바뀌었습니다. `is_new_serialize_path`, `visible`처럼 `bool`이 질문의 답인 메서드는 그대로 `Result<bool>`입니다.
 
 ---
 

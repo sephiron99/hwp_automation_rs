@@ -1,7 +1,7 @@
 //! SDK `HAction` — 한글 액션 실행기
 //!
 //! SDK 참고: HwpAutomation_2504.pdf § HAction
-use crate::error::Result;
+use crate::error::{Result, ensure};
 use crate::variant::IntoVariant;
 
 // =========================================================================
@@ -18,14 +18,10 @@ impl HAction {
     ///
     /// HWP COM은 실패 시 HRESULT 에러 대신 `false`를 반환하므로,
     /// 반환값이 `false`이면 `ExecutionFailed` 에러를 반환합니다.
+    /// (`get_default`, `execute`, `popup_dialog`도 같습니다.)
     pub fn run(&self, action_name: &str) -> Result<()> {
         let ok: bool = self.call_with("Run", vec![action_name.into_variant()?])?;
-        if !ok {
-            return Err(crate::error::HwpError::ExecutionFailed(format!(
-                "Run(\"{action_name}\")"
-            )));
-        }
-        Ok(())
+        ensure(ok, || format!("Run(\"{action_name}\")"))
     }
 
     /// 액션의 기본 파라미터를 가져옵니다.
@@ -34,12 +30,7 @@ impl HAction {
             "GetDefault",
             vec![action_name.into_variant()?, pset.to_variant()?],
         )?;
-        if !ok {
-            return Err(crate::error::HwpError::ExecutionFailed(format!(
-                "GetDefault(\"{action_name}\")"
-            )));
-        }
-        Ok(())
+        ensure(ok, || format!("GetDefault(\"{action_name}\")"))
     }
 
     /// 파라미터를 지정하여 액션을 실행합니다.
@@ -48,12 +39,7 @@ impl HAction {
             "Execute",
             vec![action_name.into_variant()?, pset.to_variant()?],
         )?;
-        if !ok {
-            return Err(crate::error::HwpError::ExecutionFailed(format!(
-                "Execute(\"{action_name}\")"
-            )));
-        }
-        Ok(())
+        ensure(ok, || format!("Execute(\"{action_name}\")"))
     }
 
     /// 액션의 설정 대화상자를 표시합니다.
@@ -66,11 +52,6 @@ impl HAction {
             "PopupDialog",
             vec![action_name.into_variant()?, pset.to_variant()?],
         )?;
-        if !ok {
-            return Err(crate::error::HwpError::ExecutionFailed(format!(
-                "PopupDialog(\"{action_name}\")"
-            )));
-        }
-        Ok(())
+        ensure(ok, || format!("PopupDialog(\"{action_name}\")"))
     }
 }

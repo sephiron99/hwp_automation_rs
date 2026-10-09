@@ -2,6 +2,7 @@
 ///
 /// SDK 참고: HwpAutomation_2504.pdf § IHwpObject
 use crate::com_util;
+use crate::error::ensure;
 use crate::hwp_obj::HwpObject;
 use crate::variant::{FromVariant, IntoVariant};
 
@@ -315,16 +316,17 @@ impl HwpObject {
     ///   `"HTML"`, `"UNICODE"`, `"TEXT"`
     /// - `arg` — 추가 옵션 문자열(없으면 빈 문자열)
     ///
-    /// 반환값은 저장 성공 여부(boolean).
-    pub fn save_as(&self, path: &str, format: &str, arg: &str) -> crate::error::Result<bool> {
-        self.call_with(
+    /// SDK가 `false`를 돌려주면(저장 실패) `ExecutionFailed` 에러를 반환합니다.
+    pub fn save_as(&self, path: &str, format: &str, arg: &str) -> crate::error::Result<()> {
+        let ok: bool = self.call_with(
             "SaveAs",
             vec![
                 path.into_variant()?,
                 format.into_variant()?,
                 arg.into_variant()?,
             ],
-        )
+        )?;
+        ensure(ok, || format!("SaveAs({path:?}, {format:?})"))
     }
 
     /// `InitScan` — 문서 텍스트 검색을 초기화합니다.
@@ -337,6 +339,8 @@ impl HwpObject {
     /// - `range` — 검색 범위 (`ScanRange`)
     /// - `spara`, `spos` — 시작 문단/위치 (`ScanSpos::Specified` 사용 시)
     /// - `epara`, `epos` — 끝 문단/위치 (`ScanEpos::Specified` 사용 시)
+    ///
+    /// SDK가 `false`를 돌려주면 `ExecutionFailed` 에러를 반환합니다.
     pub fn init_scan(
         &self,
         option: u32,
@@ -345,13 +349,13 @@ impl HwpObject {
         spos: u32,
         epara: u32,
         epos: u32,
-    ) -> crate::error::Result<bool> {
+    ) -> crate::error::Result<()> {
         let range_val = range.as_u32();
         crate::debug::log(
             "InitScan",
             &format!("option=0x{option:02x}, range=0x{range_val:04x}, spara={spara}, spos={spos}, epara={epara}, epos={epos}"),
         );
-        self.call_with(
+        let ok: bool = self.call_with(
             "InitScan",
             vec![
                 option.into_variant()?,
@@ -361,7 +365,8 @@ impl HwpObject {
                 epara.into_variant()?,
                 epos.into_variant()?,
             ],
-        )
+        )?;
+        ensure(ok, || format!("InitScan(option=0x{option:02x}, range=0x{range_val:04x})"))
     }
 
     /// `GetText` — 커서가 가리키는 단락의 텍스트를 읽고, 커서를 다음 단락으로 이동합니다.
@@ -431,14 +436,16 @@ impl HwpObject {
     /// 민감합니다.
     ///
     /// SDK: `BOOL SelectText(long spara, long spos, long epara, long epos)`
+    ///
+    /// SDK가 `false`를 돌려주면 `ExecutionFailed` 에러를 반환합니다.
     pub fn select_text(
         &self,
         spara: i32,
         spos: i32,
         epara: i32,
         epos: i32,
-    ) -> crate::error::Result<bool> {
-        self.call_with(
+    ) -> crate::error::Result<()> {
+        let ok: bool = self.call_with(
             "SelectText",
             vec![
                 spara.into_variant()?,
@@ -446,7 +453,8 @@ impl HwpObject {
                 epara.into_variant()?,
                 epos.into_variant()?,
             ],
-        )
+        )?;
+        ensure(ok, || format!("SelectText({spara}, {spos}, {epara}, {epos})"))
     }
 
     /// `KeyIndicator` — 현재 커서 위치의 정보를 가져오고 상태 표시줄을 강제로 갱신합니다.
@@ -518,12 +526,7 @@ impl HwpObject {
         let res_var = com_util::call_method_with(&self.dispatch, "KeyIndicator", args)?;
         let success = bool::from_variant(&res_var)?;
 
-        if !success {
-            return Err(crate::error::HwpError::ComError(windows::core::Error::new(
-                windows::core::HRESULT(-1),
-                "KeyIndicator failed",
-            )));
-        }
+        ensure(success, || "KeyIndicator()".to_string())?;
 
         Ok(KeyIndicatorInfo {
             section_count: seccnt,

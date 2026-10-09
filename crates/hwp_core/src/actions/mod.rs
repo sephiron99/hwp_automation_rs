@@ -45,6 +45,13 @@ use crate::hwp_obj::HwpObject;
 /// Action 래퍼의 진입점. [`HwpObject::act`]로 얻는다.
 pub struct Act<'a>(&'a HwpObject);
 
+impl Act<'_> {
+    /// Action ID를 이름으로 직접 실행합니다. 전용 래퍼가 없는 Action에 사용합니다.
+    pub fn run(&self, action_id: &str) -> crate::error::Result<()> {
+        self.0.h_action()?.run(action_id)
+    }
+}
+
 impl HwpObject {
     /// Action 래퍼 핸들을 반환합니다.
     pub fn act(&self) -> Act<'_> {
