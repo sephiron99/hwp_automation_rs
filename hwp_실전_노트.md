@@ -130,7 +130,7 @@ HWP 스레드의 WH_KEYBOARD
 
 핵심은 같은 HWP 스레드에서 실행 시점을 늦추는 것이다. 새 작업 스레드로 COM 객체나 팝업을 옮기는 설계가 아니다.
 
-팝업이 열린 동안에는 `set_popup_active(true)`로 단축키 훅을 통과시키고, 팝업이 직접 `Ctrl+/`를 처리한다. 이렇게 해야 후보 순환 키가 다시 새 애드인 액션 호출로 바뀌지 않는다.
+팝업이 열린 동안에는 `set_popup_active(true)`로 단축키 훅을 통과시키고, 팝업이 직접 `Ctrl+/`를 처리한다. 이렇게 해야 후보 순환 키가 다시 새 애드온 액션 호출로 바뀌지 않는다.
 
 **미확인 가정.** 등록 함수 주석에는 최초 1회라고 적혀 있지만, 현재 `register_action_shortcuts()`에는 중복 등록 방지 가드가 없다. `ON_LOAD`에서 다시 호출될 때의 다중 창·재등록 동작을 이미 해결된 것으로 취급하지 않는다.
 
@@ -144,7 +144,7 @@ HWP 스레드의 WH_KEYBOARD
 
 이 정상 종료 흐름을 전제로 HWP의 바깥 메시지 펌프로 복귀한다. 임의의 위치에서 `PostQuitMessage`를 호출해도 안전하다는 뜻은 아니다. 팝업 실행 중 HWP 자체가 종료되는 경우까지 검증됐다는 기록은 없다.
 
-`process_dlg_msgs: false`도 의도가 있는 설정이다. 팝업이 화살표·Enter·Esc를 직접 처리하므로, `IsDialogMessage`가 먼저 처리하는 경로를 끈다. 창 생성 중 panic은 `show()`의 `catch_unwind`에서 취소로 처리하지만, 이것이 애드인 전체 FFI 경계의 panic 보호를 의미하지는 않는다.
+`process_dlg_msgs: false`도 의도가 있는 설정이다. 팝업이 화살표·Enter·Esc를 직접 처리하므로, `IsDialogMessage`가 먼저 처리하는 경로를 끈다. 창 생성 중 panic은 `show()`의 `catch_unwind`에서 취소로 처리하지만, 이것이 애드온 전체 FFI 경계의 panic 보호를 의미하지는 않는다.
 
 ### 문자 입력은 키 코드와 다르게 전달한다
 
@@ -170,7 +170,7 @@ HWP 스레드의 WH_KEYBOARD
 
 근거: [ui_popup.rs](crates/hwp_dabbrev/src/ui_popup.rs)의 `show`, `run_popup`, `drain_char`, `paint`, `try_anchor`, [keyfwd.rs](crates/hwp_addon/src/keyfwd.rs). 이력: `2a36806`, `cdf8f0a`, `376d958`, `589a066`.
 
-## 7. C++ 애드인 인터페이스를 COM 호출 규약으로 일괄 처리하면 안 된다
+## 7. C++ 애드온 인터페이스를 COM 호출 규약으로 일괄 처리하면 안 된다
 
 **구현 근거.** SDK는 C++ 인터페이스와 export 함수 선언을 보여주지만, Rust로 옮길 때의 x86 ABI 구분은 별도로 해석해야 한다. 현재 대상인 `i686-pc-windows-msvc`에서 두 종류를 구분한다.
 
@@ -191,7 +191,7 @@ HWP 스레드의 WH_KEYBOARD
 
 ## 8. 빌려 받은 COM 포인터와 소유한 COM 참조를 구분한다
 
-**샘플과 구현에서 도출한 규칙.** 애드인 콜백으로 들어온 `pObject`는 HWP가 소유한 포인터다. C++ 샘플은 `AttachDispatch(pObject, FALSE)`로 잠시 감싸고 `DetachDispatch()`한다.
+**샘플과 구현에서 도출한 규칙.** 애드온 콜백으로 들어온 `pObject`는 HWP가 소유한 포인터다. C++ 샘플은 `AttachDispatch(pObject, FALSE)`로 잠시 감싸고 `DetachDispatch()`한다.
 
 현재 Rust의 `HwpObject::from_raw_dispatch()`도 참조를 새로 얻은 것으로 취급하지 않는다. 임시 래퍼가 Drop되면서 HWP가 소유한 참조를 Release하지 않도록 호출 측에서 `mem::forget()`을 해야 한다. 일반적인 OLE 클라이언트의 `CoCreateInstance` 반환 객체와 수명 관리가 다르다.
 
@@ -203,7 +203,7 @@ HWP 스레드의 WH_KEYBOARD
 
 ### `Version`의 타입을 한 가지로 고정하지 않는다
 
-**구현에 남은 호환성 기록.** `detect_version()` 주석은 OLE 클라이언트에서 `"10, 0, 0, 14727"` 같은 문자열, 애드인에서 정수 코드가 오는 경우를 구분한다. 현재는 BSTR 변환을 먼저 시도하고, 그다음 i32 변환을 시도한다.
+**구현에 남은 호환성 기록.** `detect_version()` 주석은 OLE 클라이언트에서 `"10, 0, 0, 14727"` 같은 문자열, 애드온에서 정수 코드가 오는 경우를 구분한다. 현재는 BSTR 변환을 먼저 시도하고, 그다음 i32 변환을 시도한다.
 
 SDK의 `Version` 설명은 바이트별 정수 구조를 제시한다. 프로젝트의 추가 지식은 문자열 경로도 다루도록 구현돼 있다는 점이다. 정확한 환경별 반환 타입 표는 없으며, 변환 실패 시 `Other(0, 0)`으로 처리된다. `V2018`, `V2022`, `V2024` enum이 있다는 사실은 해당 버전들의 모든 기능을 실환경 검증했다는 뜻이 아니다.
 
@@ -243,7 +243,7 @@ WSL 빌드에서는 Rust 컴파일과 Windows 링커 실행을 구분한다. 현
 
 기준 커밋의 의존성과 팝업 변경은 `cargo build -p hwp_dabbrev --locked`로 32비트 Windows DLL 빌드를 확인했다. 빌드 성공은 IME, 포커스, Undo, 문서별 동작의 실환경 검증을 대신하지 않는다.
 
-근거: [애드인 로그](crates/hwp_addon/src/debug.rs), [코어 로그](crates/hwp_core/src/debug.rs), [링커 설정](.cargo/config.toml).
+근거: [애드온 로그](crates/hwp_addon/src/debug.rs), [코어 로그](crates/hwp_core/src/debug.rs), [링커 설정](.cargo/config.toml).
 
 ## 기존 문서·주석을 읽을 때의 정정 사항
 

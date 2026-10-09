@@ -383,8 +383,8 @@ windows     = "0.62.2"    # Windows COM API 바인딩
 
 ```
 hwp_core  ←──  hwp_com      (OLE 클라이언트 라이브러리)
-          ←──  hwp_addon     (애드인 DLL 프레임워크)
+          ←──  hwp_addon     (애드온 DLL 프레임워크)
           ←──  hello_hwp_com (OLE 예제 바이너리)
-          ←──  hello_hwp_dll (애드인 DLL 예제)
-          ←──  hwp_dabbrev   (dabbrev 애드인)
+          ←──  hello_hwp_dll (애드온 DLL 예제)
+          ←──  hwp_dabbrev   (dabbrev 애드온)
 ```

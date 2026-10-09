@@ -1,12 +1,12 @@
 # hwp_addon 크레이트 분석
 
-HWP가 로드하는 Add-in DLL을 Rust로 작성하기 위한 프레임워크.
+HWP가 로드하는 Add-on DLL을 Rust로 작성하기 위한 프레임워크.
 
 ---
 
 ## 개요
 
-HWP는 `QueryUserActionInterface` 함수를 export하는 DLL을 애드인으로 로드한다.
+HWP는 `QueryUserActionInterface` 함수를 export하는 DLL을 애드온으로 로드한다.
 `hwp_addon`은 C++ `IHncUserActionModule` vtable 호환 레이아웃을 Rust로 구현하고,
 개발자가 `HwpUserAction` 트레잇만 구현하면 DLL을 완성할 수 있도록 래핑한다.
 

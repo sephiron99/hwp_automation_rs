@@ -52,7 +52,7 @@ impl HwpUserAction for HelloWorldPlugin {
                 let hset = insert_text.h_set()?;
 
                 action.get_default("InsertText", &hset)?;
-                insert_text.set_text("Hello World! Rust 애드인에서 삽입된 텍스트입니다.")?;
+                insert_text.set_text("Hello World! Rust 애드온에서 삽입된 텍스트입니다.")?;
                 action.execute("InsertText", &hset)?;
 
                 insert_text.set_text(hwp.get_all_text().unwrap().as_str())?;

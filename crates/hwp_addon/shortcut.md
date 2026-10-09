@@ -2,7 +2,7 @@
 
 ## 개요
 
-HWP 애드인에서 커스텀 단축키를 지원하기 위한 모듈. Windows Keyboard Hook(`WH_KEYBOARD`)을 HWP 스레드에 설치하여 키 입력을 가로채고, 등록된 단축키와 매칭되면 플러그인의 `do_action`을 직접 호출한다.
+HWP 애드온에서 커스텀 단축키를 지원하기 위한 모듈. Windows Keyboard Hook(`WH_KEYBOARD`)을 HWP 스레드에 설치하여 키 입력을 가로채고, 등록된 단축키와 매칭되면 플러그인의 `do_action`을 직접 호출한다.
 
 ## 핵심 구조체/트레잇
 

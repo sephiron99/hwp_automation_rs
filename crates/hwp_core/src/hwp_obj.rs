@@ -25,7 +25,7 @@ impl HwpObject {
         if let Ok(s) = String::from_variant(&var) {
             return HwpVer::from_version_string(&s);
         }
-        // Add-in DLL: i32 코드
+        // Add-on DLL: i32 코드
         if let Ok(code) = i32::from_variant(&var) {
             return HwpVer::from_u32(code as u32);
         }

@@ -1,6 +1,6 @@
 # HncUserActionSample 분석
 
-HWP 애드인(UserAction) DLL 개발을 위한 C++/MFC 샘플 프로젝트.
+HWP 애드온(UserAction) DLL 개발을 위한 C++/MFC 샘플 프로젝트.
 
 ---
 

@@ -8,16 +8,16 @@
 <title>hwp_addon.html</title>
 <meta http-equiv="Content-Type" content="application/xhtml+xml;charset=utf-8"/>
 <link rel="stylesheet" type="text/css" media="all" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css"  />
-<link rel="stylesheet" type="text/css" media="all" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/styles/github.min.css"  /><meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'><style> body { box-sizing: border-box; max-width: 740px; width: 100%; margin: 40px auto; padding: 0 10px; } </style><script id='MathJax-script' async src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script><script src='https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/highlight.min.js'></script><script>document.addEventListener('DOMContentLoaded', () => { document.body.classList.add('markdown-body'); document.querySelectorAll('pre[lang] > code').forEach((code) => { code.classList.add(code.parentElement.lang); }); document.querySelectorAll('pre > code').forEach((code) => { hljs.highlightBlock(code); }); });</script>
+<link rel="stylesheet" type="text/css" media="all" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/styles/github.min.css"  /><meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'><style> body { box-sizing: border-box; max-width: 740px; width: 100%; margin: 40px auto; paddong: 0 10px; } </style><script id='MathJax-script' async src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script><script src='https://cdn.jsdelivr.net/gh/highlightjs/cdn-release/build/highlight.min.js'></script><script>document.addEventListener('DOMContentLoaded', () => { document.body.classList.add('markdown-body'); document.querySelectorAll('pre[lang] > code').forEach((code) => { code.classList.add(code.parentElement.lang); }); document.querySelectorAll('pre > code').forEach((code) => { hljs.highlightBlock(code); }); });</script>
 </head>
 
 <body>
 
 <h1 id="hwp_addon-크레이트-분석">hwp_addon 크레이트 분석</h1>
-<p>HWP가 로드하는 Add-in DLL을 Rust로 작성하기 위한 프레임워크.</p>
+<p>HWP가 로드하는 Add-on DLL을 Rust로 작성하기 위한 프레임워크.</p>
 <hr>
 <h2 id="개요">개요</h2>
-<p>HWP는 <code>QueryUserActionInterface</code> 함수를 export하는 DLL을 애드인으로 로드한다.
+<p>HWP는 <code>QueryUserActionInterface</code> 함수를 export하는 DLL을 애드온으로 로드한다.
 <code>hwp_addon</code>은 C++ <code>IHncUserActionModule</code> vtable 호환 레이아웃을 Rust로 구현하고,
 개발자가 <code>HwpUserAction</code> 트레잇만 구현하면 DLL을 완성할 수 있도록 래핑한다.</p>
 <hr>

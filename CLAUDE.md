@@ -25,7 +25,7 @@ Two modes of interacting with HWP:
 
 **OLE Client (`hwp_com`)** — external process connects to HWP via `CoCreateInstance` and ProgID `"HwpFrame.HwpObject.2"`.
 
-**Add-in DLL (`hwp_addon`)** — HWP loads the DLL and calls exported `QueryUserActionInterface` to get a C-compatible vtable. Implement the `HwpUserAction` trait and use a macro to generate the export.
+**Add-on DLL (`hwp_addon`)** — HWP loads the DLL and calls exported `QueryUserActionInterface` to get a C-compatible vtable. Implement the `HwpUserAction` trait and use a macro to generate the export.
 
 ### Crate Graph
 
@@ -35,9 +35,9 @@ Two modes of interacting with HWP:
   + `HwpVer` (version enum: major 10→V2018, 12→V2022, 13→V2024)
   + 내부는 4층이고 아래에서 위로만 의존한다: `pset` ← `method` ← `actions` ← `ext` (아래 "hwp_core 층 규칙" 참고)
 - **`hwp_com`** — COM client library, depends on `hwp_core`
-- **`hwp_addon`** — add-in framework, `HwpUserAction` trait, `#[repr(C)]` vtable structs
+- **`hwp_addon`** — add-on framework, `HwpUserAction` trait, `#[repr(C)]` vtable structs
 - **`hello_hwp_ole`** (pkg: `hello_hwp_com`) — example binary using OLE client approach
-- **`hello_hwp_dll`** — example add-in DLL using `hwp_addon` framework
+- **`hello_hwp_dll`** — example add-on DLL using `hwp_addon` framework
 - **`hwp_dabbrev`** — hwp dynamic abbreviation addon like emacs's dabbrev.
   Sample project.
 
@@ -63,7 +63,7 @@ Official SDK docs are in `hwp_sdk_doc/` (2025.04 edition, gitignored):
 - **`HwpAutomation_2504.pdf`** — OLE Automation API reference (methods, properties, events)
 - **`ActionTable_2504.pdf`** — complete table of HWP action IDs
 - **`ParameterSetTable_2504.pdf`** — parameter set definitions for actions
-- **`Addon-Action.pdf`** — add-in/action plugin development guide
+- **`Addon-Action.pdf`** — add-on/action plugin development guide
 - **`한글오토메이션EventHandler추가_2504.pdf`** — EventHandler addition for Automation
 - **`HwpCtrl.tlb.IDL`** — HwpCtrl COM 타입 라이브러리 IDL
 - **`HwpObject.tlb.IDL`** — HwpObject COM 타입 라이브러리 IDL

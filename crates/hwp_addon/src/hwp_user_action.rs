@@ -50,7 +50,7 @@ pub struct ActionMeta {
     pub shortcut: Option<ShortcutKey>,
 }
 
-/// 한글 플러그인(Add-in) 개발자가 구현하는 트레잇
+/// 한글 플러그인(Add-on) 개발자가 구현하는 트레잇
 pub trait HwpUserAction {
     // ── 라이프사이클 훅 (선택, 기본 구현 제공) ──
 

@@ -2,7 +2,7 @@
 
 한글(HWP) COM/OLE 자동화를 위한 Rust 바인딩 라이브러리.
 
-한글의 공식 OLE Automation API를 Rust에서 안전하게 사용할 수 있도록 설계된 워크스페이스입니다. 외부 프로세스에서 한글을 제어하는 **OLE 클라이언트** 방식과, 한글 내부에서 실행되는 **애드인 DLL** 방식을 모두 지원합니다.
+한글의 공식 OLE Automation API를 Rust에서 안전하게 사용할 수 있도록 설계된 워크스페이스입니다. 외부 프로세스에서 한글을 제어하는 **OLE 클라이언트** 방식과, 한글 내부에서 실행되는 **애드온 DLL** 방식을 모두 지원합니다.
 
 SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구현상 가정은 [HWP 실전 노트](hwp_실전_노트.md)에 정리했습니다.
 
@@ -10,7 +10,7 @@ SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구�
 
 ## 특징
 
-- **두 가지 연동 방식**: OLE 클라이언트(`hwp_com`) / 애드인 DLL(`hwp_addon`)
+- **두 가지 연동 방식**: OLE 클라이언트(`hwp_com`) / 애드온 DLL(`hwp_addon`)
 - **편의 API와 SDK 직접 사용**: 자주 쓰는 작업은 편의 API로, 그 밖의 것은 SDK method와 Action(530개 래퍼)을 그대로 호출
 - **타입 안전한 API**: `HwpVer`, `ScanRange` 등 래퍼 타입을 제공하고, 한글이 `false`로 알리는 실패까지 `HwpError`로 통일해 `?`로 처리
 - **버전 감지**: 실행 중인 한글 버전(V2018 / V2022 / V2024)을 자동으로 감지
@@ -36,19 +36,19 @@ hwp_automation_rs/
 ├── crates/
 │   ├── hwp_core/        # 공유 기반 라이브러리 (HwpObject, HwpError, HwpVer, SDK method·Action binding, 편의 API)
 │   ├── hwp_com/         # OLE 클라이언트 (CoCreateInstance, Running Object Table)
-│   ├── hwp_addon/       # 애드인 DLL 프레임워크 (HwpUserAction 트레이트, vtable)
+│   ├── hwp_addon/       # 애드온 DLL 프레임워크 (HwpUserAction 트레이트, vtable)
 │   ├── hello_hwp_ole/   # OLE 클라이언트 예제
-│   ├── hello_hwp_dll/   # 애드인 DLL 예제
-│   └── hwp_dabbrev/     # Emacs dabbrev 스타일 자동완성 애드인
-└── HncUserActionSample/ # C++ 애드인 레퍼런스 샘플
+│   ├── hello_hwp_dll/   # 애드온 DLL 예제
+│   └── hwp_dabbrev/     # Emacs dabbrev 스타일 자동완성 애드온
+└── HncUserActionSample/ # C++ 애드온 레퍼런스 샘플
 ```
 
 ### 의존 관계
 
 ```
 hwp_core  ←──  hwp_com    ←──  hello_hwp_ole  (OLE 예제 바이너리)
-          ←──  hwp_addon  ←──  hello_hwp_dll  (애드인 DLL 예제)
-                          ←──  hwp_dabbrev    (dabbrev 애드인)
+          ←──  hwp_addon  ←──  hello_hwp_dll  (애드온 DLL 예제)
+                          ←──  hwp_dabbrev    (dabbrev 애드온)
 ```
 
 ---
@@ -105,7 +105,7 @@ HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
 
 ---
 
-### 애드인 DLL (`hwp_addon`)
+### 애드온 DLL (`hwp_addon`)
 
 한글이 DLL을 로드하여 내부에서 직접 실행합니다.
 
@@ -129,7 +129,7 @@ impl HwpUserAction for MyPlugin {
 
     fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
         if action_name == "MyAction" {
-            hwp.insert_text("Rust 애드인에서 삽입!")?;
+            hwp.insert_text("Rust 애드온에서 삽입!")?;
             return Ok(true);
         }
         Ok(false)
@@ -145,7 +145,7 @@ export_hwp_addon!(MyPlugin, MyPlugin);
 
 ## API 사용법
 
-OLE 클라이언트든 애드인이든 `HwpObject`를 얻은 뒤의 사용법은 같습니다. 두 가지 방식이 있습니다.
+OLE 클라이언트든 애드온이든 `HwpObject`를 얻은 뒤의 사용법은 같습니다. 두 가지 방식이 있습니다.
 
 ### 1. 편의 API
 
@@ -159,7 +159,7 @@ hwp.save_as_hwpx("C:\\out.hwpx")?;       // HWPX로 저장
 let shape = hwp.current_char_shape()?;  // 커서 위치의 글자 모양
 ```
 
-애드인에서는 `hwp_addon`의 `HwpTextExt`(문서 텍스트 순회), `HwpEditExt`(커서 앞 문자 교체)도 같은 방식으로 씁니다.
+애드온에서는 `hwp_addon`의 `HwpTextExt`(문서 텍스트 순회), `HwpEditExt`(커서 앞 문자 교체)도 같은 방식으로 씁니다.
 
 ### 2. SDK 직접 사용
 
@@ -207,9 +207,9 @@ let ok: bool = hwp.call_with("Open", vec![/* .. */])?; // 래퍼가 없는 metho
 
 ---
 
-## Hwp Addin Sample `hwp_dabbrev` — 자동완성 애드인
+## Hwp Addon Sample `hwp_dabbrev` — 자동완성 애드온
 
-Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드인입니다.
+Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온입니다.
 
 - **단축키**: `Ctrl+/`
 - **prefix 기반**: 커서 앞 단어를 prefix로 삼아 문서 내 일치하는 단어를 후보로 제시
