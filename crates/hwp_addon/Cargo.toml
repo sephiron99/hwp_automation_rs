@@ -4,12 +4,21 @@ version = "0.2.0"
 authors = [ "sephiron <sephiron@hanmail.net>" ]
 license = "MIT"
 edition = "2024"
+description = "Framework for writing Hancom HWP (Hangul Word Processor) add-on DLLs (user actions, toolbar, shortcuts) in Rust"
+repository = "https://github.com/sephiron99/hwp_automation_rs"
+readme = "../../README.md"
+keywords = ["hwp", "hangul", "hancom", "addon", "plugin"]
+categories = ["api-bindings", "os::windows-apis"]
 
 # 1. 라이브러리 타입 설정 (가장 중요)
 # [lib]
 # name = "hwp_addon"
 # C/C++ 호환 표준 Windows DLL로 빌드
 # crate-type = ["cdylib"]
+
+[package.metadata.docs.rs]
+default-target = "i686-pc-windows-msvc"
+targets = ["i686-pc-windows-msvc"]
 
 [dependencies]
 thiserror = "2.0.20"

@@ -1,8 +1,18 @@
 [package]
 name = "hwp_com"
 version = "0.2.0"
+authors = [ "sephiron <sephiron@hanmail.net>" ]
 license = "MIT"
 edition = "2024"
+description = "OLE client for Hancom HWP (Hangul Word Processor): start or attach to a running HWP instance and control it from Rust"
+repository = "https://github.com/sephiron99/hwp_automation_rs"
+readme = "../../README.md"
+keywords = ["hwp", "hangul", "hancom", "ole", "automation"]
+categories = ["api-bindings", "os::windows-apis"]
+
+[package.metadata.docs.rs]
+default-target = "i686-pc-windows-msvc"
+targets = ["i686-pc-windows-msvc"]
 
 [dependencies]
 thiserror = "2.0.20"
