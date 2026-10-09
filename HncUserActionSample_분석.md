@@ -1,5 +1,7 @@
 # HncUserActionSample 분석
 
+> 한컴이 배포한 C++ 샘플의 구조를 설명한 문서입니다. 샘플 소스 코드는 이 저장소에 포함하지 않으며, 아래 내용은 원본 코드를 옮기지 않고 인터페이스와 동작만 서술합니다.
+
 HWP 애드온(UserAction) DLL 개발을 위한 C++/MFC 샘플 프로젝트.
 
 ---
@@ -38,14 +40,7 @@ HncUserActionSample/
 
 HWP가 DLL 로드 시 호출하는 **핵심 진입점**. `static CUserActionModule` 싱글턴을 리턴.
 
-```cpp
-// UserActionModule.cpp:135
-IHncUserActionModule* __stdcall QueryUserActionInterface()
-{
-    static CUserActionModule uam;
-    return static_cast<IHncUserActionModule*>(&uam);
-}
-```
+`UserActionModule.cpp`에 있으며, 함수 내부의 `static CUserActionModule` 객체를 `IHncUserActionModule*`로 캐스팅해 `__stdcall`로 반환한다.
 
 ### `IsAccessiblePath(HWND, LONG, LPCTSTR, LPCTSTR) -> BOOL`
 
@@ -55,23 +50,12 @@ HWP가 파일 접근 전에 호출하는 보안 콜백. 샘플에서는 항상 `
 
 HWP가 호출하는 vtable 인터페이스. **4개 가상 메서드**로 구성:
 
-```cpp
-interface IHncUserActionModule
-{
-    // 등록된 액션 이름을 순회 (iterator 패턴)
-    virtual LPCSTR EnumAction(int nIterator) = 0;
-
-    // 액션에 대응하는 툴바 비트맵 + 이미지 인덱스 반환
-    virtual BOOL GetActionImage(LPCSTR szAction, UINT uState,
-                                HBITMAP* lphBitmap, int* lpnImageIndex) = 0;
-
-    // 액션의 UI 상태 반환 (0=보통, DFCS_INACTIVE, DFCS_CHECKED, DFCS_BUTTON3STATE)
-    virtual BOOL UpdateUI(LPCSTR szAction, LPDISPATCH pObject, UINT* lpuState) = 0;
-
-    // 액션 실행 — pObject는 IHwpObject (CHwpObject로 래핑)
-    virtual int DoAction(LPCSTR szAction, LPDISPATCH pObject) = 0;
-};
-```
+| 메서드 | 역할 |
+|---|---|
+| `EnumAction` | 등록된 액션 이름을 순회 (iterator 패턴) |
+| `GetActionImage` | 액션에 대응하는 툴바 비트맵과 이미지 인덱스 반환 |
+| `UpdateUI` | 액션의 UI 상태 반환 (0=보통, `DFCS_INACTIVE`, `DFCS_CHECKED`, `DFCS_BUTTON3STATE`) |
+| `DoAction` | 액션 실행. `pObject`는 `IHwpObject` (`CHwpObject`로 래핑) |
 
 ### vtable 레이아웃 (C ABI 관점)
 
@@ -86,59 +70,39 @@ interface IHncUserActionModule
 
 ### 4.1. USERACTION 구조체
 
-```cpp
-typedef BOOL(*PFNUSERACTION)(CHwpObject& pObject);
-typedef UINT(*PFNUSERACTION_UPDATEUI)(CHwpObject& pObject);
+액션 하나를 나타내는 구조체로, 필드는 네 개다.
 
-typedef struct tagUserAction {
-    LPCSTR szActionName;                    // GUID 문자열 (액션 식별자)
-    int nImageIndex;                        // 비트맵 내 아이콘 인덱스
-    PFNUSERACTION pfnUserAction;            // 실행 함수 포인터
-    PFNUSERACTION_UPDATEUI pfnUserActionUpdateUI;  // UI 상태 함수 포인터 (NULL 가능)
-} USERACTION;
-```
+| 필드 | 타입 | 의미 |
+|---|---|---|
+| `szActionName` | `LPCSTR` | GUID 문자열 (액션 식별자) |
+| `nImageIndex` | `int` | 비트맵 내 아이콘 인덱스 |
+| `pfnUserAction` | `BOOL (*)(CHwpObject&)` | 실행 함수 포인터 |
+| `pfnUserActionUpdateUI` | `UINT (*)(CHwpObject&)` | UI 상태 함수 포인터 (NULL 가능) |
 
 ### 4.2. 액션맵 매크로
 
-```cpp
-#define BEGIN_USERACTION_MAP()  USERACTION g_arUserActions[] = {
-#define END_USERACTION_MAP()    };
-#define USERACTION_ENTRY(NAME, IMAGEINDEX, ACTIONFP, UPDATEUIFP) {NAME, IMAGEINDEX, ACTIONFP, UPDATEUIFP},
-```
+`BEGIN_USERACTION_MAP()` / `USERACTION_ENTRY(이름, 이미지 인덱스, 실행 함수, UI 상태 함수)` / `END_USERACTION_MAP()` 세 매크로가 전역 배열 `g_arUserActions`의 초기화 목록으로 펼쳐진다. 항목 하나가 `USERACTION` 하나다.
 
 ### 4.3. 샘플의 액션맵 (UserActionMap.h)
 
-```cpp
-BEGIN_USERACTION_MAP()
-    // 예약된 시스템 액션 (HWP가 자동 호출)
-    USERACTION_ENTRY(UUIDSTR_ON_INITIAL_LOAD,        0,  OnInitialLoad,  0)
-    USERACTION_ENTRY(UUIDSTR_ON_LOAD,                0,  OnLoad,         0)
-
-    // 사용자 정의 액션 (툴바/툴박스 버튼에 바인딩)
-    USERACTION_ENTRY(UUIDSTR_ON_USERACTION_TOOLBAR,  64, OnUserAction1,  0)
-    USERACTION_ENTRY(UUIDSTR_ON_USERACTION_TOOLBOX,  64, OnUserAction1,  0)
-END_USERACTION_MAP()
-```
+| 액션 이름 | 이미지 인덱스 | 실행 함수 | UI 상태 함수 | 구분 |
+|---|---|---|---|---|
+| `UUIDSTR_ON_INITIAL_LOAD` | 0 | `OnInitialLoad` | 없음 | 예약된 시스템 액션 (HWP가 자동 호출) |
+| `UUIDSTR_ON_LOAD` | 0 | `OnLoad` | 없음 | 예약된 시스템 액션 (HWP가 자동 호출) |
+| `UUIDSTR_ON_USERACTION_TOOLBAR` | 64 | `OnUserAction1` | 없음 | 사용자 정의 액션 (툴바 버튼) |
+| `UUIDSTR_ON_USERACTION_TOOLBOX` | 64 | `OnUserAction1` | 없음 | 사용자 정의 액션 (툴박스 버튼) |
 
 ### 4.4. 예약 GUID 상수
 
-```cpp
-// HWP 내부 예약 GUID — 변경 불가
-#define UUIDSTR_ON_INITIAL_LOAD     "{B91A2981-A001-44a9-933F-5BF70A747967}"  // DLL 최초 로드
-#define UUIDSTR_ON_LOAD             "{3E4DC866-051C-4989-820E-DADC1E6264B9}"  // 문서 로드마다
+`UserActionsUUIDSTR.h`에 문자열 상수로 정의돼 있다.
 
-// 사용자 정의 GUID — 다른 GUID와 겹치면 안됨
-#define UUIDSTR_ON_USERACTION_TOOLBAR  "{752C9DDE-6AB6-40EA-8C3F-DB18D2779482}"
-#define UUIDSTR_ON_USERACTION_TOOLBOX  "{64B5DAFA-F5E2-4035-9ACF-522946227C80}"
-
-// 레지스트리 시리얼라이즈 경로
-#define USERACTION_SERIALIZE_PATH   "HwpUserAction"
-
-// 툴박스 UI 요소 UID
-#define USERTOOLBOXTAB_UID      "{EE1DAE22-7B0F-41ED-9CF7-D657A5BE0841}"
-#define USERTOOLBOX_UID         "{189D2B2A-60DC-4C09-B234-971141BB45ED}"
-#define USERTOOLBOXGROUP_UID    "{6E999844-C8AD-4FC1-B993-A742276EC893}"
-```
+| 상수 | 값 | 용도 |
+|---|---|---|
+| `UUIDSTR_ON_INITIAL_LOAD` | `{B91A2981-A001-44a9-933F-5BF70A747967}` | HWP 예약 GUID (변경 불가). DLL 최초 로드 |
+| `UUIDSTR_ON_LOAD` | `{3E4DC866-051C-4989-820E-DADC1E6264B9}` | HWP 예약 GUID (변경 불가). 문서 로드마다 |
+| `UUIDSTR_ON_USERACTION_TOOLBAR`, `UUIDSTR_ON_USERACTION_TOOLBOX` | 샘플이 임의로 정한 GUID | 사용자 정의 액션. 다른 GUID와 겹치면 안 됨 |
+| `USERACTION_SERIALIZE_PATH` | `"HwpUserAction"` | 레지스트리 시리얼라이즈 경로 |
+| `USERTOOLBOXTAB_UID`, `USERTOOLBOX_UID`, `USERTOOLBOXGROUP_UID` | 샘플이 임의로 정한 GUID | 툴박스 탭·툴박스·그룹의 UID |
 
 ## 5. 액션 라이프사이클
 
@@ -183,22 +147,13 @@ HwpObject
 
 ### 5.4. DoAction 디스패치
 
-```cpp
-// UserActionModule.cpp:110
-BOOL CUserActionModule::DoAction(LPCSTR szAction, LPDISPATCH pObject)
-{
-    for (i = 0; i < NELEM(g_arUserActions); i++) {
-        if (!strcmp(g_arUserActions[i].szActionName, szAction)) {
-            CHwpObject app;
-            app.AttachDispatch(pObject, FALSE);  // IDispatch → CHwpObject 래핑
-            BOOL res = g_arUserActions[i].pfnUserAction(app);
-            app.DetachDispatch();                // Release 없이 분리
-            return res;
-        }
-    }
-    return FALSE;
-}
-```
+`CUserActionModule::DoAction` (`UserActionModule.cpp`)의 동작:
+
+1. 액션 배열 `g_arUserActions`를 순회하며 `szAction`과 이름이 같은 항목을 찾는다.
+2. 찾으면 `CHwpObject`를 만들어 `AttachDispatch(pObject, FALSE)`로 `IDispatch`를 감싼다.
+3. 항목의 `pfnUserAction`을 호출한다.
+4. `DetachDispatch()`로 분리하고(Release 없음) 호출 결과를 반환한다.
+5. 일치하는 항목이 없으면 `FALSE`를 반환한다.
 
 핵심 패턴: `LPDISPATCH`를 `CHwpObject`에 `AttachDispatch(pObject, FALSE)`로 래핑 → 함수 호출 → `DetachDispatch()`로 분리. `FALSE`는 Release를 호출하지 않겠다는 의미 (소유권을 가져가지 않음).
 
@@ -223,14 +178,9 @@ BOOL CUserActionModule::DoAction(LPCSTR szAction, LPDISPATCH pObject)
 
 모든 COM 객체 래퍼는 MFC의 `COleDispatchDriver`를 상속. `InvokeHelper()`로 IDispatch 호출:
 
-```cpp
-class CHwpObject : public COleDispatchDriver
-{
-    // property get: InvokeHelper(DISPID, DISPATCH_PROPERTYGET, VT_*, &result, NULL)
-    // property put: InvokeHelper(DISPID, DISPATCH_PROPERTYPUT, VT_EMPTY, NULL, parms, value)
-    // method:       InvokeHelper(DISPID, DISPATCH_METHOD, VT_*, &result, parms, args...)
-};
-```
+- property get: `InvokeHelper(DISPID, DISPATCH_PROPERTYGET, 반환 타입, &result, NULL)`
+- property put: `InvokeHelper(DISPID, DISPATCH_PROPERTYPUT, VT_EMPTY, NULL, parms, value)`
+- method: `InvokeHelper(DISPID, DISPATCH_METHOD, 반환 타입, &result, parms, args...)`
 
 ### 6.2. HwpObjects — HWP COM 객체 래퍼
 
@@ -408,22 +358,10 @@ Rust에서는 `.rc` 파일 + `embed-resource` 크레이트 또는 Windows API �
 
 HWP의 액션 시스템은 Action + ParameterSet 패턴:
 
-```cpp
-// CHwpObject에서 액션 생성
-CDHwpAction action;
-action.AttachDispatch(hwpObject.CreateAction("InsertText"));
-
-// 파라미터 셋 생성
-CDHwpParameterSet paramSet;
-paramSet.AttachDispatch(action.CreateSet());
-
-// 파라미터 설정
-paramSet.SetItem("Text", COleVariant("Hello"));
-
-// 기본값 로드 + 실행
-action.GetDefault(paramSet);
-action.Execute(paramSet);
-```
+1. `CHwpObject::CreateAction("InsertText")`로 액션 객체(`CDHwpAction`)를 얻는다.
+2. 액션의 `CreateSet()`으로 파라미터 셋(`CDHwpParameterSet`)을 만든다.
+3. `SetItem("Text", 값)`으로 파라미터를 설정한다.
+4. `GetDefault(paramSet)`로 기본값을 로드하고 `Execute(paramSet)`로 실행한다.
 
 `CDHwpAction` (DISPID):
 - `0x01` get_ActID, `0x02` get_SetID
