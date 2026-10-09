@@ -103,3 +103,40 @@ macro_rules! export_hwp_addon {
         }
     };
 }
+
+/// `rundll32.exe <dll>,<name>`으로 호출할 수 있는 진입점을 export합니다.
+///
+/// 애드온 DLL이 자기 자신을 `rundll32`로 다시 띄워, 한글과 독립된 프로세스에서
+/// 코드를 실행하려 할 때 씁니다. rundll32는 export 표에서 이름을 그대로 찾으므로
+/// 심볼 이름을 변형하지 않고 내보냅니다.
+///
+/// # 인자
+///
+/// - `$name`: export할 함수 이름입니다. rundll32 인자의 콤마 뒤에 쓰는 이름과 같습니다.
+/// - `$handler`: 진입 시 호출할 `fn()`입니다. rundll32가 넘기는 창 핸들, 인스턴스
+///   핸들, 명령줄, 표시 상태는 전달하지 않습니다.
+///
+/// # 안전성
+///
+/// 생성되는 함수는 rundll32 콜백 규약(`void CALLBACK Entry(HWND, HINSTANCE, LPWSTR, int)`)을
+/// 따르며 인자를 읽지 않습니다. `no_mangle` export이므로 같은 이름을 한 DLL에서 두 번
+/// 정의하면 안 됩니다.
+///
+/// # 예제
+///
+/// ```ignore
+/// fn run_gui() { /* ... */ }
+///
+/// hwp_addon::export_rundll_entry!(RunGuiW, run_gui);
+/// // rundll32.exe "<dll 경로>",RunGuiW
+/// ```
+#[macro_export]
+macro_rules! export_rundll_entry {
+    ($name:ident, $handler:expr) => {
+        #[unsafe(no_mangle)]
+        #[allow(non_snake_case)]
+        pub extern "system" fn $name(_hwnd: isize, _hinst: isize, _cmdline: *const u16, _show: i32) {
+            $handler()
+        }
+    };
+}

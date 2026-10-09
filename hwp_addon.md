@@ -274,6 +274,17 @@ export_hwp_addon!(MyPlugin, MyPlugin);
 - **`QueryUserActionInterface`**: `&MODULE`(static `RustActionModule`) 포인터 반환
 - **`IsAccessiblePath`**: 항상 1(TRUE) 반환
 
+### `export_rundll_entry!` 매크로
+
+애드온 DLL이 자기 자신을 `rundll32.exe "<dll 경로>",<이름>`으로 다시 띄워 한글과 독립된
+프로세스에서 코드를 실행할 때 쓰는 진입점을 `no_mangle`로 export한다. 진입 시 `fn()` 하나를
+호출하며 rundll32가 넘기는 인자는 전달하지 않는다.
+
+```rust
+fn run_gui() { /* ... */ }
+export_rundll_entry!(RunGuiW, run_gui);
+```
+
 `VTABLE`(static `IHncUserActionModuleVtbl`)과 `MODULE`(static `RustActionModule<T>`)도 생성한다.
 둘 다 `'static`이므로 DLL 수명 동안 유효하다.
 
