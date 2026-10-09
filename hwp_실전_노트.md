@@ -56,7 +56,7 @@ TSF 진단에서는 `GetFocus()` 같은 호출이 **HRESULT는 S_OK지만 반환
 
 이 헬퍼는 현재 위치에 `prefix`의 내용이 실제로 있는지 비교하지 않는다. 호출자가 문맥을 읽고 올바른 prefix를 넘겨야 한다. 또한 IME 조합 확정을 먼저 시도한 상태에서 사용하도록 설계돼 있다.
 
-근거: [text_edit.rs](crates/hwp_addon/src/text_edit.rs)의 `select_chars_before`, `replace_chars_before`, [IHwpObject 구현](crates/hwp_core/src/ihwpobject/lib.rs)의 `select_text`.
+근거: [text_edit.rs](crates/hwp_addon/src/text_edit.rs)의 `select_chars_before`, `replace_chars_before`, [IHwpObject 구현](crates/hwp_core/src/method/hwp_object.rs)의 `select_text`.
 
 ## 3. 스캔 범위와 캐럿 앞 텍스트를 동일시하지 않는다
 

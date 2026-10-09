@@ -32,7 +32,7 @@ use std::ops::ControlFlow;
 
 use hwp_core::error::{HwpError, Result};
 use hwp_core::hwp_obj::HwpObject;
-use hwp_core::ihwpobject::lib::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask};
+use hwp_core::method::hwp_object::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask};
 
 /// 한 텍스트 추출 이벤트.
 #[derive(Debug, Clone)]

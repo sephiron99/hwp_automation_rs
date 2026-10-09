@@ -12,6 +12,7 @@
 /// hwp.windows()?.active()?.set_visible(true)?; // 창 표시
 /// ```
 pub use hwp_core::error::{HwpError, Result};
+pub use hwp_core::ext::HwpExt;
 use hwp_core::hwp_obj::HwpObject;
 use windows::Win32::System::Com::{
     CLSCTX_LOCAL_SERVER, CLSIDFromProgID, CoCreateInstance, CreateBindCtx, GetRunningObjectTable,

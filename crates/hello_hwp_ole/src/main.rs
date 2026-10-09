@@ -1,3 +1,5 @@
+use hwp_com::HwpExt;
+
 /// 한글 OLE 클라이언트 예제
 ///
 /// Running Object Table에서 실행 중인 한글 인스턴스를 열거하고

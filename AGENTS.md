@@ -33,12 +33,28 @@ Two modes of interacting with HWP:
   + `HwpObject` (이 프로젝트 사용자들에게 노출되는 api 진입점. IHwpObject에 대응)
   + `HwpError` (wraps `windows::core::Error`)
   + `HwpVer` (version enum: major 10→V2018, 12→V2022, 13→V2024)
+  + 내부는 4층이고 아래에서 위로만 의존한다: `pset` ← `method` ← `actions` ← `ext` (아래 "hwp_core 층 규칙" 참고)
 - **`hwp_com`** — COM client library, depends on `hwp_core`
 - **`hwp_addon`** — add-in framework, `HwpUserAction` trait, `#[repr(C)]` vtable structs
 - **`hello_hwp_ole`** (pkg: `hello_hwp_com`) — example binary using OLE client approach
 - **`hello_hwp_dll`** — example add-in DLL using `hwp_addon` framework
 - **`hwp_dabbrev`** — hwp dynamic abbreviation addon like emacs's dabbrev.
   Sample project.
+
+### hwp_core 층 규칙
+
+| 층 | 모듈 | 내용 | 사용자 호출 형태 |
+|---|---|---|---|
+| 1 | `pset` | ParameterSet 타입 (`HParameterSet`, `HCharShape` 등) | 타입으로만 등장 |
+| 2 | `method` | `HwpObject.tlb.IDL`의 method/property 1:1 binding | `hwp.get_pos()` |
+| 3 | `actions` | ActionTable의 Action ID별 래퍼 | `hwp.act().undo()` |
+| 4 | `ext` | 편의 API (`HwpExt` trait) | `use hwp_core::ext::HwpExt; hwp.insert_text(..)` |
+
+- 1~3층에는 정책을 넣지 않는다: 호출 하나에 COM 호출 하나, 에러는 그대로 전달. 인자를 enum으로 감싸는 것은 허용.
+- 호출을 둘 이상 묶거나, 기본값을 정하거나, 에러를 삼키는 코드는 `ext`에 둔다. `ext`는 아래 층의 공개 API만 쓴다.
+- 구조를 건드린 뒤에는 `cargo check`와 `scripts/check_layers.sh`(역방향 참조 검사)를 실행한다.
+- 사용자 문서(`README.md`)에서는 4층을 드러내지 않고 "편의 API"와 "SDK 직접 사용(method, Action)" 두 갈래로만 설명한다.
+- 자세한 구조는 `hwp_core.md`, SDK method 미구현 목록은 `bind_progress.md`, Action 구현 계획은 `plan.md`.
 
 ## HWP SDK Documentation
 

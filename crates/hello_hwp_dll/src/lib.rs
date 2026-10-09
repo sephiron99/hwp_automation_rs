@@ -59,7 +59,7 @@ impl HwpUserAction for HelloWorldPlugin {
                 action.execute("InsertText", &hset)?;
                 // let _ = dbg!(hwp.get_all_text());
 
-                // hwp.move_pos(hwp_core::ihwpobject::movepos::MovePos::StartOfPara)?;
+                // hwp.move_pos(hwp_core::method::movepos::MovePos::StartOfPara)?;
                 // must return Err
                 // action.run("WrongAction")?;
 

@@ -41,9 +41,10 @@
 //! }
 //! ```
 //!
-//! [`HAction`]: hwp_core::h_action::HAction
+//! [`HAction`]: hwp_core::method::h_action::HAction
 
 use hwp_core::error::Result;
+use hwp_core::ext::HwpExt;
 use hwp_core::hwp_obj::HwpObject;
 
 /// [`HwpObject`]에 IME-safe 고수준 편집 메서드를 추가하는 extension trait.

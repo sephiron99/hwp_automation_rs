@@ -11,7 +11,7 @@ SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구�
 ## 특징
 
 - **두 가지 연동 방식**: OLE 클라이언트(`hwp_com`) / 애드인 DLL(`hwp_addon`)
-- **600+ 액션 메서드**: 편집, 표, 그림, 찾기/바꾸기, 커서 이동, 문단 모양 등 한글 SDK 전체 액션을 Rust 메서드로 제공
+- **편의 API와 SDK 직접 사용**: 자주 쓰는 작업은 편의 API로, 그 밖의 것은 SDK method와 Action(530개 래퍼)을 그대로 호출
 - **타입 안전한 API**: `HwpError`, `HwpVer`, `ScanRange` 등 래퍼 타입으로 COM 오류를 Rust 방식으로 처리
 - **버전 감지**: 실행 중인 한글 버전(V2018 / V2022 / V2024)을 자동으로 감지
 - **WSL 지원**: WSL 환경에서 `i686-pc-windows-msvc` 크로스 컴파일 가능
@@ -34,7 +34,7 @@ SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구�
 ```
 hwp_automation_rs/
 ├── crates/
-│   ├── hwp_core/        # 공유 기반 라이브러리 (HwpObject, HwpError, HwpVer, 액션 메서드)
+│   ├── hwp_core/        # 공유 기반 라이브러리 (HwpObject, HwpError, HwpVer, SDK method·Action binding, 편의 API)
 │   ├── hwp_com/         # OLE 클라이언트 (CoCreateInstance, Running Object Table)
 │   ├── hwp_addon/       # 애드인 DLL 프레임워크 (HwpUserAction 트레이트, vtable)
 │   ├── hello_hwp_ole/   # OLE 클라이언트 예제
@@ -78,7 +78,7 @@ WSL에서 `i686-pc-windows-msvc` 타겟으로 빌드하려면 [strickczq/msvc-ws
 외부 프로세스에서 실행 중인 한글을 제어합니다.
 
 ```rust
-use hwp_com::HwpClient;
+use hwp_com::{HwpClient, HwpExt};
 
 fn main() -> hwp_com::Result<()> {
     // 새 한글 인스턴스 시작
@@ -101,14 +101,9 @@ fn main() -> hwp_com::Result<()> {
 HwpClient::new()           // 새 한글 인스턴스 시작
 HwpClient::attach()        // 실행 중인 첫 번째 인스턴스에 연결
 HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
-
-// HwpObject 메서드 (600+ 액션)
-hwp.insert_text("텍스트")?
-hwp.run("FileNew")?
-hwp.move_doc_begin()?
-hwp.get_text_file(GetTextFileFormat::Unicode, false)?
-hwp.init_scan(mask::NORMAL, ScanRange::within_selection(), 0, 0, 0, 0)?
 ```
+
+`HwpObject`를 얻은 뒤의 사용법은 아래 [API 사용법](#api-사용법)을 참고하세요.
 
 ---
 
@@ -118,6 +113,7 @@ hwp.init_scan(mask::NORMAL, ScanRange::within_selection(), 0, 0, 0, 0)?
 
 ```rust
 use hwp_addon::{export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig}};
+use hwp_core::ext::HwpExt;
 use hwp_core::hwp_obj::HwpObject;
 
 pub struct MyPlugin;
@@ -149,6 +145,58 @@ export_hwp_addon!(MyPlugin, MyPlugin);
 
 ---
 
+## API 사용법
+
+OLE 클라이언트든 애드인이든 `HwpObject`를 얻은 뒤의 사용법은 같습니다. 두 가지 방식이 있습니다.
+
+### 1. 편의 API
+
+자주 쓰는 작업을 한 번의 호출로 묶어 둔 것입니다. `HwpExt` trait을 가져오면 쓸 수 있습니다.
+
+```rust
+use hwp_core::ext::HwpExt;   // OLE 클라이언트는 hwp_com::HwpExt로도 가져올 수 있습니다
+
+hwp.insert_text("텍스트")?;              // 커서 위치에 텍스트 삽입
+hwp.save_as_hwpx("C:\\out.hwpx")?;       // HWPX로 저장
+let shape = hwp.current_char_shape()?;  // 커서 위치의 글자 모양
+```
+
+애드인에서는 `hwp_addon`의 `HwpTextExt`(문서 텍스트 순회), `HwpEditExt`(커서 앞 문자 교체)도 같은 방식으로 씁니다.
+
+### 2. SDK 직접 사용
+
+편의 API에 없는 기능은 한글 SDK의 method와 Action을 그대로 호출합니다. 한컴 SDK 문서의 이름과 1:1로 대응합니다.
+
+**method** — `HwpAutomation` 문서의 method/property. `HwpObject`와 하위 객체에 직접 붙어 있습니다.
+
+```rust
+use hwp_core::method::hwp_object::{GetTextFileFormat, ScanRange, mask};
+
+let (list, para, pos) = hwp.get_pos()?;
+hwp.get_text_file(GetTextFileFormat::Unicode, false)?;
+hwp.init_scan(mask::NORMAL, ScanRange::within_selection(), 0, 0, 0, 0)?;
+hwp.windows()?.active()?.set_visible(true)?;
+```
+
+**Action** — `ActionTable` 문서의 Action ID. `hwp.act()` 뒤에 있습니다.
+
+```rust
+hwp.act().undo()?;              // Action ID "Undo"
+hwp.act().char_shape_bold()?;   // Action ID "CharShapeBold"
+```
+
+래퍼가 아직 없는 것은 이름으로 직접 호출할 수 있습니다.
+
+```rust
+hwp.run("FileNew")?;                                  // 래퍼가 없는 Action
+let n: i32 = hwp.get("PageCount")?;                   // 래퍼가 없는 property
+let ok: bool = hwp.call_with("Open", vec![/* .. */])?; // 래퍼가 없는 method
+```
+
+파라미터가 필요한 Action은 `hwp.h_action()`과 `hwp.h_parameter_set()`으로 실행합니다. Action을 인자 없이 실행하면 한글이 대화상자를 띄울 수 있습니다.
+
+---
+
 ## Hwp Addin Sample `hwp_dabbrev` — 자동완성 애드인
 
 Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드인입니다.
@@ -174,6 +222,8 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드인�
 | `DispObj` | 일반 `IDispatch` 래퍼 (`hwp_com_type!` 매크로로 확장) |
 | `ScanRange` | `InitScan` 범위 파라미터 (`ScanSpos` + `ScanEpos` 비트 필드) |
 | `HAction` | 액션 실행기 (`run`, `execute`, `get_default`, `popup_dialog`) |
+| `Act` | Action 래퍼 핸들 (`hwp.act()`) |
+| `HwpExt` | 편의 API trait |
 
 ---
 

@@ -5,6 +5,42 @@ use std::mem::ManuallyDrop;
 use windows::Win32::System::Com::IDispatch;
 use windows::Win32::System::Variant::*;
 
+/// C++ COleDispatchDriver 래퍼 클래스에 대응하는 Rust newtype을 생성합니다.
+///
+/// 생성되는 구현:
+/// - `Deref<Target = DispObj>` — 범용 `get`/`call`/`call_with` 접근
+/// - `FromVariant` — COM 메서드 반환값에서 자동 변환
+/// - `IntoVariant` — COM 메서드 인자로 전달 가능
+macro_rules! hwp_com_type {
+    ($(#[$meta:meta])* $name:ident) => {
+        $(#[$meta])*
+        pub struct $name(crate::disp_obj::DispObj);
+
+        impl std::ops::Deref for $name {
+            type Target = crate::disp_obj::DispObj;
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl crate::variant::FromVariant for $name {
+            fn from_variant(
+                v: &windows::Win32::System::Variant::VARIANT,
+            ) -> crate::error::Result<Self> {
+                Ok($name(crate::variant::FromVariant::from_variant(v)?))
+            }
+        }
+
+        impl crate::variant::IntoVariant for $name {
+            fn into_variant(
+                self,
+            ) -> crate::error::Result<windows::Win32::System::Variant::VARIANT> {
+                self.0.into_variant()
+            }
+        }
+    };
+}
+
 /// 임의의 IDispatch COM 객체를 감싸는 경량 래퍼.
 ///
 /// HWP의 sub-object (XHwpWindows, XHwpToolbarLayout 등)를 체이닝할 때 사용합니다.

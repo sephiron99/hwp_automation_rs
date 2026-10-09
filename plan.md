@@ -21,11 +21,13 @@ Dummy Action, HwpCtrl 전용 Action, 외부에 ParameterSet이 노출되지 않�
 
 ## 2. 재검토한 현재 상태
 
-- 현재 `crates/hwp_core/src/actions/`에는 14개 도메인 파일이 있고,
+- 현재 `crates/hwp_core/src/actions/`에는 15개 도메인 파일이 있고,
   `HAction::run("...")` 기준 고유 Action ID는 약 530개다.
-- 공개 Action 메서드는 대부분 `self.h_action()?.run("ActionId")`만 호출한다.
-- `actions/mod.rs`와 `hwp_core.md`에는 139개 이동 Action을 가진 `move_` 모듈이 있다고 적혀 있지만,
-  실제 `actions/move_.rs`와 `pub mod move_;`는 없다.
+- 공개 Action 메서드는 `hwp.act()`가 돌려주는 `Act` 핸들에 있고, 모두
+  `self.0.h_action()?.run("ActionId")`만 호출한다.
+- `actions/move_.rs`에는 `MoveWordBegin` 하나만 있다. 나머지 이동/선택 Action은 아직 없다.
+- `hwp_core`는 `pset ← method ← actions ← ext` 4층으로 나뉜다(`hwp_core.md` 참고). 이 계획의
+  Action 래퍼는 `actions`, ParameterSet 타입은 `pset`, 조합형 편의 메서드는 `ext`에 둔다.
 - `HParameterSet`의 전용 접근자는 `HInsertText`, `HCharShape`, `HParaShape` 세 종류뿐이다.
 - `ParameterSetTable_2504.pdf`에는 141개의 최상위 정의가 있지만, 모든 정의가 Action의 직접
   ParameterSet은 아니다. 일부는 다른 Set의 `PIT_SET`/`PIT_ARRAY` 하위 타입이다.
@@ -202,7 +204,7 @@ API와의 충돌을 확인한 뒤 인벤토리에 고정한다.
 
 ### 단계 D. 누락 Action 메서드 구현
 
-1. 가장 먼저 `actions/move_.rs`를 추가해 이동/선택 Action을 복구하고 `actions/mod.rs`에서 공개한다.
+1. 가장 먼저 `actions/move_.rs`에 이동/선택 Action을 채운다(현재 `MoveWordBegin` 하나뿐).
 2. 기존 모듈을 다음 순서로 보강한다.
    - 편집, 삭제, 클립보드, 찾기
    - 글자 모양, 문단 모양, 스타일, 변환

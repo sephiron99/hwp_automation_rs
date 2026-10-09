@@ -214,6 +214,18 @@ pub struct KeyIndicatorInfo {
 // =========================================================================
 
 impl HwpObject {
+    // ── 액션 실행기·파라미터 셋 ──
+
+    /// `HAction` 프로퍼티 — 액션 실행기
+    pub fn h_action(&self) -> crate::error::Result<crate::method::h_action::HAction> {
+        self.get("HAction")
+    }
+
+    /// `HParameterSet` 프로퍼티 — 파라미터 셋 컨테이너
+    pub fn h_parameter_set(&self) -> crate::error::Result<crate::pset::HParameterSet> {
+        self.get("HParameterSet")
+    }
+
     // ── 기본 액션 ──
 
     /// `Run` — 액션을 즉시 실행합니다.
@@ -231,12 +243,12 @@ impl HwpObject {
     /// `XHwpDocuments` 프로퍼티 — HWP 문서(도큐먼트) 컬렉션
     ///
     /// SDK: `IHwpObject.XHwpDocuments(Property)` — 도큐먼트를 관리하는 XHwpDocuments Object를 얻는다.
-    pub fn documents(&self) -> crate::error::Result<crate::hwp_types::XHwpDocuments> {
+    pub fn documents(&self) -> crate::error::Result<crate::method::xhwp::XHwpDocuments> {
         self.get("XHwpDocuments")
     }
 
     /// `XHwpWindows` 프로퍼티 — HWP 창 컬렉션
-    pub fn windows(&self) -> crate::error::Result<crate::hwp_types::XHwpWindows> {
+    pub fn windows(&self) -> crate::error::Result<crate::method::xhwp::XHwpWindows> {
         self.get("XHwpWindows")
     }
 
@@ -313,11 +325,6 @@ impl HwpObject {
                 arg.into_variant()?,
             ],
         )
-    }
-
-    /// 현재 문서를 hwpx(`HWPX`) 포맷으로 저장합니다. (`SaveAs(path, "HWPX", "")`)
-    pub fn save_as_hwpx(&self, path: &str) -> crate::error::Result<bool> {
-        self.save_as(path, "HWPX", "")
     }
 
     /// `InitScan` — 문서 텍스트 검색을 초기화합니다.

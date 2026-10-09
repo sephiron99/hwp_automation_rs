@@ -1,41 +1,8 @@
+//! SDK `IXHwp*` — 문서·창·툴바 등 하위 객체의 method/property binding
+//!
+//! SDK 참고: HwpAutomation_2504.pdf, HwpObject.tlb.IDL
 use crate::error::Result;
 use crate::variant::IntoVariant;
-
-/// C++ COleDispatchDriver 래퍼 클래스에 대응하는 Rust newtype을 생성합니다.
-///
-/// 생성되는 구현:
-/// - `Deref<Target = DispObj>` — 범용 `get`/`call`/`call_with` 접근
-/// - `FromVariant` — COM 메서드 반환값에서 자동 변환
-/// - `IntoVariant` — COM 메서드 인자로 전달 가능
-macro_rules! hwp_com_type {
-    ($(#[$meta:meta])* $name:ident) => {
-        $(#[$meta])*
-        pub struct $name(crate::disp_obj::DispObj);
-
-        impl std::ops::Deref for $name {
-            type Target = crate::disp_obj::DispObj;
-            fn deref(&self) -> &Self::Target {
-                &self.0
-            }
-        }
-
-        impl crate::variant::FromVariant for $name {
-            fn from_variant(
-                v: &windows::Win32::System::Variant::VARIANT,
-            ) -> crate::error::Result<Self> {
-                Ok($name(crate::variant::FromVariant::from_variant(v)?))
-            }
-        }
-
-        impl crate::variant::IntoVariant for $name {
-            fn into_variant(
-                self,
-            ) -> crate::error::Result<windows::Win32::System::Variant::VARIANT> {
-                self.0.into_variant()
-            }
-        }
-    };
-}
 
 // =========================================================================
 // CXHwpDocuments — HWP 문서(도큐먼트) 컬렉션
