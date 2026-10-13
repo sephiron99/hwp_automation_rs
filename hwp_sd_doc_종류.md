@@ -6,6 +6,7 @@
   * HwpCtrl.tlb.IDL
   * HwpObject.tlb.IDL
   * ParameterSetTable_2504.pdf
+  * 한글문서파일형식3.0_HWPML_revision1.2.pdf
   * 한글오토메이션EventHandler추가_2504.pdf
 
 
