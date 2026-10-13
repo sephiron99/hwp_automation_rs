@@ -180,7 +180,7 @@ unsafe extern "system" fn message_wnd_proc(
         let name_opt: Option<&'static str> = ACTIONSWITHSHORTCUT
             .lock()
             .ok()
-            .and_then(|v| v.get(index).map(|m| m.name));
+            .and_then(|v| v.get(index).map(|m| m.name_str()));
         if let Some(name) = name_opt {
             let _ = run_action(name);
         }

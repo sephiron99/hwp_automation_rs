@@ -1,6 +1,5 @@
 use crate::hwp_user_action::HwpUserAction;
 use hwp_core::hwp_obj::HwpObject;
-use std::cell::RefCell;
 use std::ffi::{c_char, c_void};
 
 // =========================================================================
@@ -141,11 +140,9 @@ fn with_hwp_object<T>(p_obj: *mut c_void, f: impl FnOnce(&HwpObject) -> T) -> Op
 /// - `n≥2` → `actions()[n-2].name`   (사용자 정의 액션)
 ///
 /// # 문자열 수명
-/// 반환하는 `*const c_char`는 `thread_local!` 버퍼를 가리킨다.
-/// COM 콜백 관행상 HWP가 순차 열거 중 다음 `EnumAction` 호출 전에 반환 포인터를
-/// 복사한다고 가정한다 (SDK 문서에 명시된 계약은 아님).
-/// 버퍼를 `static`이 아닌 `thread_local`로 둔 이유: HWP가 단일 스레드에서
-/// 순차 호출하므로 충분하고, 재진입 위험 없이 `borrow_mut`을 쓸 수 있다.
+/// 반환하는 `*const c_char`는 `ActionMeta::name`(또는 예약 GUID)의
+/// `&'static CStr`을 그대로 가리킨다. 액션마다 주소가 다르고 내용이 바뀌지
+/// 않으므로, HWP가 포인터를 복사하지 않고 보관해도 안전하다.
 ///
 /// # Safety
 /// - `this`는 `RustActionModule<T>`의 유효한 포인터이거나 `null`이어야 한다.
@@ -165,22 +162,7 @@ pub unsafe extern "thiscall" fn tramp_enum_action<T: HwpUserAction>(
         return std::ptr::null();
     };
 
-    // Action 이름을 null 종료 ANSI 문자열로 변환하여 thread_local 버퍼에 보관.
-    // 가정: HWP가 순차 열거(n=0,1,2,…) 중 다음 EnumAction 호출 전에 반환 포인터를
-    // 복사한다는 COM 콜백 관행에 의존한다. SDK 문서에 명시된 계약은 아님.
-    // Vec 대신 고정 크기 배열을 사용해 포인터가 Vec 재할당으로 무효화되는 것을 방지합니다.
-    thread_local! {
-        static BUF: RefCell<[u8; MAX_ACTION_LEN]> = const { RefCell::new([0u8; MAX_ACTION_LEN]) };
-    }
-
-    BUF.with(|buf| {
-        let mut buf = buf.borrow_mut();
-        let bytes = name.as_bytes();
-        let len = bytes.len().min(MAX_ACTION_LEN - 1);
-        buf[..len].copy_from_slice(&bytes[..len]);
-        buf[len] = 0;
-        buf.as_ptr() as *const c_char
-    })
+    name.as_ptr()
 }
 
 /// `IHncUserActionModule::GetActionImage` 트램펄린

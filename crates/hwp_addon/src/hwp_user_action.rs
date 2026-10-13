@@ -2,11 +2,35 @@ use crate::shortcut::ShortcutKey;
 use crate::toolbar::ToolbarBitmap;
 use hwp_core::error::Result;
 use hwp_core::hwp_obj::HwpObject;
+use std::ffi::CStr;
 
+/// HWP 예약 액션 GUID — 최초 등록 시 한 번만 호출 (`EnumAction` 반환용 C 문자열)
+pub const UUIDCSTR_ON_INITIAL_LOAD: &CStr = c"{B91A2981-A001-44a9-933F-5BF70A747967}";
+/// HWP 예약 액션 GUID — 창이 열릴 때마다 호출 (`EnumAction` 반환용 C 문자열)
+pub const UUIDCSTR_ON_LOAD: &CStr = c"{3E4DC866-051C-4989-820E-DADC1E6264B9}";
 /// HWP 예약 액션 GUID — 최초 등록 시 한 번만 호출
-pub const UUIDSTR_ON_INITIAL_LOAD: &str = "{B91A2981-A001-44a9-933F-5BF70A747967}";
+pub const UUIDSTR_ON_INITIAL_LOAD: &str = action_str(UUIDCSTR_ON_INITIAL_LOAD);
 /// HWP 예약 액션 GUID — 창이 열릴 때마다 호출
-pub const UUIDSTR_ON_LOAD: &str = "{3E4DC866-051C-4989-820E-DADC1E6264B9}";
+pub const UUIDSTR_ON_LOAD: &str = action_str(UUIDCSTR_ON_LOAD);
+
+/// 액션 이름(`&'static CStr`)을 `&'static str`로 바꿉니다.
+///
+/// `do_action`의 `match` 패턴처럼 `&str` 상수가 필요할 때 씁니다.
+/// `const` 문맥에서 호출하면 UTF-8이 아닌 이름은 컴파일 에러가 됩니다.
+///
+/// ```
+/// use std::ffi::CStr;
+/// use hwp_addon::hwp_user_action::action_str;
+///
+/// const MY_ACTION: &CStr = c"MyAction";
+/// const MY_ACTION_STR: &str = action_str(MY_ACTION);
+/// ```
+pub const fn action_str(name: &'static CStr) -> &'static str {
+    match name.to_str() {
+        Ok(s) => s,
+        Err(_) => panic!("액션 이름은 UTF-8이어야 합니다"),
+    }
+}
 
 /// 툴바/리본 중 어느 쪽을 표시할지 선택 (최소 하나 필수)
 pub enum ToolbarTarget {
@@ -40,14 +64,25 @@ pub struct ToolbarConfig {
 /// 사용자 액션의 메타데이터
 #[derive(Clone)]
 pub struct ActionMeta {
-    /// 액션 식별자 (e.g., "DabbrevExpand")
-    pub name: &'static str,
+    /// 액션 식별자 (e.g., `c"DabbrevExpand"`)
+    ///
+    /// NUL로 끝나는 정적 문자열이라 `EnumAction`이 이 주소를 그대로 HWP에
+    /// 넘깁니다. 액션마다 주소가 다르고 프로세스가 끝날 때까지 내용이
+    /// 바뀌지 않으므로, HWP가 포인터를 언제 읽든 같은 이름을 봅니다.
+    pub name: &'static CStr,
     /// 버튼/메뉴 표시 텍스트 (e.g., "dabbrev")
     pub label: &'static str,
     /// 비트맵 스트립 내 아이콘 인덱스
     pub image_index: i32,
     /// 단축키 (없으면 `None`)
     pub shortcut: Option<ShortcutKey>,
+}
+
+impl ActionMeta {
+    /// [`name`](Self::name)을 `&str`로 돌려줍니다. UTF-8이 아니면 빈 문자열입니다.
+    pub fn name_str(&self) -> &'static str {
+        self.name.to_str().unwrap_or_default()
+    }
 }
 
 /// 한글 플러그인(Add-on) 개발자가 구현하는 트레잇
@@ -120,7 +155,8 @@ pub trait HwpUserAction {
         ) {
             let toolbar = layout.create_toolbar(config.name, 0)?;
             for action in self.actions() {
-                let button = layout.create_toolbar_button(action.label, action.name, btn_style)?;
+                let button =
+                    layout.create_toolbar_button(action.label, action.name_str(), btn_style)?;
                 toolbar.insert_button(button, -1)?;
             }
         }
@@ -138,7 +174,7 @@ pub trait HwpUserAction {
             for action in self.actions() {
                 let item = toolbox_toolbar.create_toolbox_item_button_ex(
                     action.label,
-                    action.name,
+                    action.name_str(),
                     1,
                     btn_style,
                 )?;
@@ -152,17 +188,20 @@ pub trait HwpUserAction {
     // ── 프레임워크 디스패치 (기본 구현, 오버라이드 불필요) ──
 
     /// 예약 GUID + 사용자 액션을 순서대로 열거합니다.
-    fn enum_action(&self, index: i32) -> Option<&'static str> {
+    fn enum_action(&self, index: i32) -> Option<&'static CStr> {
         match index as usize {
-            0 => Some(UUIDSTR_ON_INITIAL_LOAD),
-            1 => Some(UUIDSTR_ON_LOAD),
+            0 => Some(UUIDCSTR_ON_INITIAL_LOAD),
+            1 => Some(UUIDCSTR_ON_LOAD),
             i => self.actions().get(i - 2).map(|a| a.name),
         }
     }
 
     /// 액션 이름으로 툴바 비트맵 핸들과 해당 액션의 이미지 인덱스를 반환합니다.
     fn get_action_image(&self, action_name: &str, state: u32) -> Option<(isize, i32)> {
-        let entry = self.actions().iter().find(|e| e.name == action_name)?;
+        let entry = self
+            .actions()
+            .iter()
+            .find(|e| e.name_str() == action_name)?;
         let hbitmap = self.toolbar_bitmap(state)?;
         Some((hbitmap, entry.image_index))
     }

@@ -101,7 +101,7 @@ HWP.exe → 사용자가 툴바/리본 버튼 클릭
 ```rust
 fn actions(&self) -> &'static [ActionMeta] {
     &[ActionMeta {
-        name: "DabbrevExpand",
+        name: c"DabbrevExpand",
         label: "dabbrev",
         image_index: 0,
         shortcut: Some(ShortcutKey {
