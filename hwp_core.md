@@ -48,6 +48,17 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 - `#[doc(no_inline)]`을 붙여 문서가 복사되지 않고 `hwp_core` 링크로만 나오게 한다.
 - `hwp_core`에 공개 모듈을 새로 만들면 두 목록에 넣을지 정한다. `hwp_addon`에는 위 모듈과 같은 이름의 모듈을 만들지 않는다.
 
+### 버전 feature
+
+빌드 때는 대상 한글 버전을 알 수 없으므로, 한글 2022·2024에서 새로 생긴 SDK method, property, Action, ParameterSet 항목은 cargo feature로 감싼다.
+
+- feature는 `v2022`, `v2024`이고 `v2024`는 `v2022`를 포함한다. 아무것도 켜지 않으면 한글 2018 기준이다.
+- `hwp_com`과 `hwp_addon`은 같은 이름의 feature로 `hwp_core`의 feature를 켠다. 사용자는 둘 중 하나에서 켠다.
+- 새 API에는 그 API가 처음 생긴 버전의 feature로 `#[cfg(feature = "v2022")]`만 붙인다. docs.rs는 nightly `doc_cfg`(각 `lib.rs`의 `#![cfg_attr(docsrs, feature(doc_cfg))]`)로 "Available on crate feature v2022 only" 배지를 자동으로 붙인다. `doc(cfg(...))`를 따로 쓰지 않는다.
+- feature로 감싸는 것은 새 API에만 한다. 이미 공개된 API를 나중에 감싸면 breaking change다. 그래서 처음 생긴 버전을 SDK 문서로 확인한 뒤 추가한다.
+- feature는 사용자의 선언일 뿐 실행 중인 한글을 검사하지 않는다. `HwpVer`로 미리 막지 않고, 낮은 버전에서 호출하면 COM이 돌려주는 실패를 그대로 전달한다(method·property는 `HwpError::UnknownMember`, Action은 `ExecutionFailed`).
+- feature로 감싼 코드를 바꾼 뒤에는 `cargo check --all-features`도 실행한다. 배지는 `RUSTC_BOOTSTRAP=1 RUSTDOCFLAGS="--cfg docsrs" cargo doc --all-features --no-deps`로 로컬에서 확인할 수 있다.
+
 ---
 
 ## 모듈 트리

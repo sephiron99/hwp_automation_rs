@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 // 층 구조 (아래에서 위로만 의존): 기반 ← pset ← method ← actions ← ext
 // 자세한 규칙은 저장소 루트의 hwp_core.md 참고.
 

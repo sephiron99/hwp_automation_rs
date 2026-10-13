@@ -19,6 +19,9 @@ categories = ["api-bindings", "os::windows-apis"]
 [package.metadata.docs.rs]
 default-target = "i686-pc-windows-msvc"
 targets = ["i686-pc-windows-msvc"]
+# 버전 feature로 감싼 API도 문서에 나오게 하고, "Available on crate feature ..." 배지를 붙인다.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 thiserror = "2.0.20"
@@ -70,7 +73,6 @@ features = [
 [features]
 # 파일 로그 구독자(`hwp_addon::logging`). 켜지 않으면 로그는 어디에도 기록되지 않는다.
 file-log = ["dep:tracing-subscriber"]
-# hwp2018부터만 지원
-# default = ["v2018"] 
-v2022 = []
-v2024 = []
+# 최소 대상 한글 버전. hwp_core의 같은 이름 feature를 켠다. 기본은 한글 2018.
+v2022 = ["hwp_core/v2022"]
+v2024 = ["v2022", "hwp_core/v2024"]
