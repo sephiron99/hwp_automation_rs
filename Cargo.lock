@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "hello_hwp_com"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hwp_com",
  "windows",
@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "hello_hwp_dll"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hwp_addon",
  "hwp_core",
@@ -136,10 +136,9 @@ dependencies = [
 
 [[package]]
 name = "hwp_dabbrev"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hwp_addon",
- "hwp_com",
  "hwp_core",
  "tracing",
  "windows",

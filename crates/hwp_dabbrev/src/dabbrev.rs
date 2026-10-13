@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use hwp_addon::{
+    HwpObject,
     text_edit::HwpEditExt,
     text_extract::{HwpTextExt, TextSegment},
 };
 use hwp_core::{
     ext::HwpExt,
-    hwp_obj::HwpObject,
     method::hwp_object::{ScanRange, mask},
     variant::IntoVariant,
 };

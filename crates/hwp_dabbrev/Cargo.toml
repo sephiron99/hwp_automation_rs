@@ -1,6 +1,6 @@
 [package]
 name = "hwp_dabbrev"
-version = "0.2.0"
+version = "0.3.0"
 license = "MIT"
 edition = "2024"
 publish = false
@@ -15,9 +15,8 @@ path = "src/lib.rs"
 # path = "src/hwp_dabbrev_ole.rs"
 
 [dependencies]
-hwp_addon = { path = "../hwp_addon", features = ["file-log"] }
-hwp_core = { path = "../hwp_core" }
-hwp_com = { path = "../hwp_com" }
+hwp_addon = { version = "0.3.0", path = "../hwp_addon", features = ["file-log"] }
+hwp_core = { version = "0.3.0", path = "../hwp_core" }
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 winsafe = { version = "0.0.29", features = ["gui"] }
 
