@@ -79,7 +79,7 @@ hwp_addon/src/
 │  │    │  fn toolbar_bitmap()  → Option<isize>            │    │  │
 │  │    └──────────────────────────────────────────────────┘    │  │
 │  │    ┌─ 프레임워크 내부 (오버라이드 불필요) ────────────┐    │  │
-│  │    │  fn enum_action()          → Option<&str>        │    │  │
+│  │    │  fn enum_action()          → Option<&CStr>       │    │  │
 │  │    │  fn get_action_image()     → Option<(isize,i32)> │    │  │
 │  │    │  fn dispatch()             → Result<bool>        │    │  │
 │  │    │  fn dispatch_update_ui()   → u32                 │    │  │
@@ -125,8 +125,8 @@ LoadLibrary("addon.dll")
   │       └─→ tramp_enum_action
   │               └─→ extract_plugin(this) → plugin
   │                       └─→ plugin.enum_action(n)
-  │                             0 → UUIDSTR_ON_INITIAL_LOAD
-  │                             1 → UUIDSTR_ON_LOAD
+  │                             0 → UUIDCSTR_ON_INITIAL_LOAD
+  │                             1 → UUIDCSTR_ON_LOAD
   │                             n → actions()[n-2].name
   │
   ├─→ GetActionImage(name, state, phBitmap, pnIndex)
@@ -219,8 +219,8 @@ HWP가 소유한 `IDispatch` 포인터를 `HwpObject`로 래핑할 때
 `enum_action(n)`이 반환하는 순서:
 
 ```
-0 → UUIDSTR_ON_INITIAL_LOAD  ({B91A2981-...})
-1 → UUIDSTR_ON_LOAD          ({3E4DC866-...})
+0 → UUIDCSTR_ON_INITIAL_LOAD  ({B91A2981-...})
+1 → UUIDCSTR_ON_LOAD          ({3E4DC866-...})
 2 → actions()[0].name
 3 → actions()[1].name
 ...
