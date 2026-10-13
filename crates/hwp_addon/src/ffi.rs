@@ -1,7 +1,7 @@
 use crate::hwp_user_action::HwpUserAction;
 use hwp_core::hwp_obj::HwpObject;
-use std::cell::RefCell;
-use std::ffi::{c_char, c_void};
+use std::ffi::{CString, c_char, c_void};
+use std::sync::OnceLock;
 
 // =========================================================================
 // C++ IHncUserActionModule vtable 호환 레이아웃
@@ -58,12 +58,47 @@ pub struct IHncUserActionModuleVtbl {
 /// ```text
 /// [0..4]  lpVtbl → IHncUserActionModuleVtbl (C++ vptr 위치)
 /// [4..]   plugin  (사용자 구현 HwpUserAction)
+/// [..]    action_names (EnumAction 반환용 C 문자열 캐시)
 /// ```
 #[repr(C)]
 #[allow(non_snake_case)]
 pub struct RustActionModule<T: HwpUserAction> {
     pub lpVtbl: *const IHncUserActionModuleVtbl,
     pub plugin: T,
+    /// `EnumAction`이 돌려줄 NUL 종료 액션 이름. 첫 `EnumAction` 호출 때 한 번
+    /// 채우고 이후 바꾸지 않는다. 모듈이 `static`이므로 각 `CString`의 주소는
+    /// DLL이 로드된 동안 유효하고 내용도 그대로다.
+    action_names: OnceLock<Box<[CString]>>,
+}
+
+impl<T: HwpUserAction> RustActionModule<T> {
+    /// `export_hwp_addon!` 매크로가 `static MODULE`을 만들 때 쓰는 생성자.
+    pub const fn new(lp_vtbl: *const IHncUserActionModuleVtbl, plugin: T) -> Self {
+        Self {
+            lpVtbl: lp_vtbl,
+            plugin,
+            action_names: OnceLock::new(),
+        }
+    }
+
+    /// `enum_action(0..)`을 끝까지 열거해 C 문자열로 변환한 목록.
+    ///
+    /// 이름 중간에 NUL이 있으면 C 문자열로 표현할 수 없으므로 로그를 남기고
+    /// 건너뛴다.
+    fn action_names(&self) -> &[CString] {
+        self.action_names.get_or_init(|| {
+            (0..)
+                .map_while(|n| self.plugin.enum_action(n))
+                .filter_map(|name| match CString::new(name) {
+                    Ok(c) => Some(c),
+                    Err(_) => {
+                        tracing::error!(?name, "액션 이름에 NUL 문자가 있어 건너뜀");
+                        None
+                    }
+                })
+                .collect()
+        })
+    }
 }
 
 // 'static vtable 포인터를 보관하며 변경하지 않으므로 안전합니다.
@@ -85,10 +120,18 @@ unsafe impl<T: HwpUserAction> Send for RustActionModule<T> {}
 /// - `this`는 유효한 `RustActionModule<T>`를 가리켜야 합니다.
 /// - 반환된 참조의 수명(`'a`)은 호출자가 책임집니다.
 fn extract_plugin<'a, T: HwpUserAction>(this: *mut c_void) -> Option<&'a T> {
+    extract_module::<T>(this).map(|m| &m.plugin)
+}
+
+/// C++ `this` 포인터를 `RustActionModule<T>` 참조로 재해석합니다.
+///
+/// # Safety
+/// [`extract_plugin`]과 같습니다.
+fn extract_module<'a, T: HwpUserAction>(this: *mut c_void) -> Option<&'a RustActionModule<T>> {
     if this.is_null() {
         return None;
     }
-    Some(unsafe { &(*(this as *const RustActionModule<T>)).plugin })
+    Some(unsafe { &*(this as *const RustActionModule<T>) })
 }
 
 const MAX_ACTION_LEN: usize = 256;
@@ -141,11 +184,11 @@ fn with_hwp_object<T>(p_obj: *mut c_void, f: impl FnOnce(&HwpObject) -> T) -> Op
 /// - `n≥2` → `actions()[n-2].name`   (사용자 정의 액션)
 ///
 /// # 문자열 수명
-/// 반환하는 `*const c_char`는 `thread_local!` 버퍼를 가리킨다.
-/// COM 콜백 관행상 HWP가 순차 열거 중 다음 `EnumAction` 호출 전에 반환 포인터를
-/// 복사한다고 가정한다 (SDK 문서에 명시된 계약은 아님).
-/// 버퍼를 `static`이 아닌 `thread_local`로 둔 이유: HWP가 단일 스레드에서
-/// 순차 호출하므로 충분하고, 재진입 위험 없이 `borrow_mut`을 쓸 수 있다.
+/// SDK는 반환 문자열을 언제까지 유지해야 하는지 명시하지 않는다. 그래서 첫 호출 때
+/// 모든 이름을 `RustActionModule::action_names`(`static` 모듈 안의 캐시)에
+/// `CString`으로 만들어 두고, 이후 그 주소를 돌려준다. 액션마다 주소가 다르고
+/// DLL이 로드된 동안 내용이 바뀌지 않으므로 HWP가 포인터를 복사하든 보관하든
+/// 안전하다. 길이 제한도 없다.
 ///
 /// # Safety
 /// - `this`는 `RustActionModule<T>`의 유효한 포인터이거나 `null`이어야 한다.
@@ -156,31 +199,16 @@ pub unsafe extern "thiscall" fn tramp_enum_action<T: HwpUserAction>(
 ) -> *const c_char {
     tracing::trace!(n, ?this, "EnumAction");
     // this가 null이면 RustActionModule에 접근할 수 없으므로 조기 반환
-    let Some(plugin) = extract_plugin::<T>(this) else {
-        tracing::error!("EnumAction: extract_plugin 실패");
+    let Some(module) = extract_module::<T>(this) else {
+        tracing::error!("EnumAction: extract_module 실패");
         return std::ptr::null();
     };
-    // n이 범위를 벗어나면 None → null 반환으로 열거 종료 신호
-    let Some(name) = plugin.enum_action(n) else {
+    // n이 음수거나 범위를 벗어나면 null 반환으로 열거 종료 신호
+    let names = module.action_names();
+    let Some(name) = usize::try_from(n).ok().and_then(|i| names.get(i)) else {
         return std::ptr::null();
     };
-
-    // Action 이름을 null 종료 ANSI 문자열로 변환하여 thread_local 버퍼에 보관.
-    // 가정: HWP가 순차 열거(n=0,1,2,…) 중 다음 EnumAction 호출 전에 반환 포인터를
-    // 복사한다는 COM 콜백 관행에 의존한다. SDK 문서에 명시된 계약은 아님.
-    // Vec 대신 고정 크기 배열을 사용해 포인터가 Vec 재할당으로 무효화되는 것을 방지합니다.
-    thread_local! {
-        static BUF: RefCell<[u8; MAX_ACTION_LEN]> = const { RefCell::new([0u8; MAX_ACTION_LEN]) };
-    }
-
-    BUF.with(|buf| {
-        let mut buf = buf.borrow_mut();
-        let bytes = name.as_bytes();
-        let len = bytes.len().min(MAX_ACTION_LEN - 1);
-        buf[..len].copy_from_slice(&bytes[..len]);
-        buf[len] = 0;
-        buf.as_ptr() as *const c_char
-    })
+    name.as_ptr()
 }
 
 /// `IHncUserActionModule::GetActionImage` 트램펄린

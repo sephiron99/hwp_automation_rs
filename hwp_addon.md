@@ -56,6 +56,7 @@ hwp_addon/src/
 │  │  RustActionModule<T: HwpUserAction> (repr C)               │  │
 │  │    lpVtbl : *const IHncUserActionModuleVtbl   ← [0..4]     │  │
 │  │    plugin : T                                 ← [4..]      │  │
+│  │    action_names : OnceLock<Box<[CString]>>                 │  │
 │  │                                                            │  │
 │  │  트램펄린 (thiscall → trait 위임)                          │  │
 │  │    tramp_enum_action       → plugin.enum_action()          │  │
@@ -176,8 +177,9 @@ MSVC 32-bit에서 가상 함수는 `__thiscall` 호출 규약(this → ECX)을 �
 
 ```
 RustActionModule<T>
- ├── [0..4]  lpVtbl  →  IHncUserActionModuleVtbl  (C++ vptr 위치)
- └── [4..]   plugin  :  T  (HwpUserAction 구현체)
+ ├── [0..4]  lpVtbl        →  IHncUserActionModuleVtbl  (C++ vptr 위치)
+ ├── [4..]   plugin        :  T  (HwpUserAction 구현체)
+ └── [..]    action_names  :  OnceLock<Box<[CString]>>  (EnumAction 반환 문자열 캐시)
 ```
 
 HWP가 vtable 포인터 바로 뒤에 `this`로 접근하므로 `#[repr(C)]` 필수.
@@ -192,9 +194,11 @@ HWP가 소유한 `IDispatch` 포인터를 `HwpObject`로 래핑할 때
 `AddRef`/`Release`를 호출하면 안 된다.
 `with_hwp_object`가 `from_raw_dispatch` 후 `std::mem::forget`으로 Drop을 방지한다.
 
-**EnumAction 문자열 버퍼**:
-반환하는 `*const c_char`는 `thread_local!` `Vec<u8>`에 보관한다.
-HWP는 다음 `EnumAction` 호출 전에 문자열을 복사하므로 안전하다.
+**EnumAction 문자열 수명**:
+첫 `EnumAction` 호출 때 `enum_action(0..)`의 이름을 모두 `CString`으로 만들어
+`MODULE.action_names`에 캐시하고, 이후 그 주소를 돌려준다. `MODULE`이 `static`이라
+액션마다 주소가 다르고 DLL이 로드된 동안 내용이 바뀌지 않으므로, HWP가 포인터를
+복사하든 보관하든 안전하다. 길이 제한은 없고, NUL이 섞인 이름은 로그를 남기고 건너뛴다.
 
 ---
 

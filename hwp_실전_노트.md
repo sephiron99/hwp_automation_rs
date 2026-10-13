@@ -183,7 +183,7 @@ HWP 스레드의 WH_KEYBOARD
 
 문자열도 자료를 대조해야 한다. SDK PDF에는 `LPCTSTR`로 적힌 선언이 있지만, 동봉 C++ 샘플의 `UserActionModule.h`는 액션 이름에 `LPCSTR`를 사용한다. 현재 Rust FFI도 1바이트 C 문자열을 사용한다. GUID와 `DabbrevExpand` 같은 ASCII 식별자가 현재 사용 범위이며, 비ASCII 액션 이름의 인코딩 호환성은 확인되지 않았다.
 
-**미확인 가정.** `EnumAction`은 같은 thread-local 256바이트 버퍼를 재사용한다. HWP가 다음 열거 호출 전에 문자열을 복사한다고 가정하지만, SDK에 그 수명 계약이 명시돼 있지는 않다. 고정 주소라고 해서 앞선 호출의 문자열 내용까지 계속 보존되는 것은 아니다. 현재 이름은 최대 255바이트로 잘린다.
+**문자열 수명.** SDK는 `EnumAction`이 돌려준 문자열을 언제까지 유지해야 하는지 명시하지 않는다. 그래서 첫 `EnumAction` 호출 때 모든 액션 이름을 `CString`으로 만들어 `static` 모듈 안의 캐시(`RustActionModule::action_names`)에 두고, 이후 그 주소를 돌려준다. 액션마다 주소가 다르고 DLL이 로드된 동안 내용이 바뀌지 않으므로 HWP가 포인터를 복사하든 보관하든 같은 이름을 읽는다. 길이 제한은 없다. 사용자 코드의 `ActionMeta::name`은 그대로 `&'static str`이다.
 
 샘플 안에도 별도 확인이 필요한 불일치가 있다. `IsAccessiblePath`는 헤더에서 인자 3개, `.cpp` 정의에서 인자 4개이며, 현재 Rust 매크로는 3개를 export한다. 이 문서에서는 어느 시그니처가 모든 HWP 환경에서 맞는지 결론 내리지 않는다.
 
