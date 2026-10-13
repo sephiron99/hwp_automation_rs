@@ -10,6 +10,8 @@ pub mod text_edit;
 pub mod text_extract;
 pub mod toolbar;
 
+pub use hwp_core::hwp_obj::HwpObject;
+
 // `export_hwp_addon!`이 사용자 크레이트에서 tracing 매크로를 쓰기 위한 재수출.
 #[doc(hidden)]
 pub use tracing as __tracing;
