@@ -11,4 +11,3 @@ crate-type = ["cdylib"]
 
 [dependencies]
 hwp_addon = { version = "0.3.0", path = "../hwp_addon" }
-hwp_core = { version = "0.3.0", path = "../hwp_core" }

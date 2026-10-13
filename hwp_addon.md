@@ -337,7 +337,7 @@ export_hwp_addon!(HelloWorldPlugin, HelloWorldPlugin);
 
 ## 의존성
 
-- **`hwp_core`**: `HwpObject`, `HwpVer`, COM 유틸
+- **`hwp_core`**: `HwpObject`, `HwpVer`, COM 유틸. 사용자에게 필요한 항목과 층 모듈은 `hwp_addon` 루트에서 re-export한다(`hwp_core.md`의 "re-export 정책").
 - **`windows`**: Win32 API (GDI, UI, COM, Registry 등)
 - **`widestring`**: UTF-16 문자열 변환
 - **`thiserror`**: 에러 타입

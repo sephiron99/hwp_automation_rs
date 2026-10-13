@@ -24,7 +24,7 @@ static CONFIG: ToolbarConfig = ToolbarConfig {
 
 /// `text_segments()`로 문서 전체를 훑어 단어 배열을 만든다. 컨트롤 진입/탈출
 /// 경계는 무시하고 그 안의 텍스트도 본문과 같은 흐름으로 평탄화한다.
-fn extract_all_words(hwp: &HwpObject) -> hwp_core::error::Result<Vec<String>> {
+fn extract_all_words(hwp: &HwpObject) -> hwp_addon::Result<Vec<String>> {
     let mut buf = String::new();
     for seg in hwp.text_segments()? {
         match seg? {
@@ -79,7 +79,7 @@ impl HwpUserAction for DabbrevPlugin {
         &ACTIONS
     }
 
-    fn on_load(&self, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
+    fn on_load(&self, hwp: &HwpObject) -> hwp_addon::Result<bool> {
         // 샘플이라 디버그 로그를 기본 경로에 남긴다. 실패해도 애드온 동작에는 영향 없음.
         let _ = hwp_addon::logging::init_default(hwp_addon::logging::LevelFilter::DEBUG);
         match self.setup_toolbar(hwp) {
@@ -91,7 +91,7 @@ impl HwpUserAction for DabbrevPlugin {
         }
     }
 
-    fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
+    fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_addon::Result<bool> {
         match action_name {
             ACTION_DABBREV => match self.expand(hwp) {
                 Ok(v) => Ok(v),

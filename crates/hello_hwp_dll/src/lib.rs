@@ -32,7 +32,7 @@ impl HwpUserAction for HelloWorldPlugin {
         &ACTIONS
     }
 
-    fn on_load(&self, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
+    fn on_load(&self, hwp: &HwpObject) -> hwp_addon::Result<bool> {
         match self.setup_toolbar(hwp) {
             Ok(v) => Ok(v),
             Err(e) => {
@@ -42,7 +42,7 @@ impl HwpUserAction for HelloWorldPlugin {
         }
     }
 
-    fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
+    fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_addon::Result<bool> {
         match action_name {
             MY_ACTION => {
                 let action = hwp.h_action()?;
@@ -58,7 +58,7 @@ impl HwpUserAction for HelloWorldPlugin {
                 action.execute("InsertText", &hset)?;
                 // let _ = dbg!(hwp.get_all_text());
 
-                // hwp.move_pos(hwp_core::method::movepos::MovePos::StartOfPara)?;
+                // hwp.move_pos(hwp_addon::method::movepos::MovePos::StartOfPara)?;
                 // must return Err
                 // action.run("WrongAction")?;
 

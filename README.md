@@ -55,6 +55,8 @@ hwp_core  ←──  hwp_com    ←──  hello_hwp_ole  (OLE 예제 바이너�
                           ←──  hwp_dabbrev    (dabbrev 애드온)
 ```
 
+사용자는 `hwp_com`이나 `hwp_addon` 하나만 의존하면 됩니다. 두 크레이트가 `HwpObject`, `HwpError`, `Result`, `HwpExt`, `HwpVer`와 `hwp_core`의 `method`, `pset`, `actions`, `ext`, `variant`, `error`, `hwp_ver` 모듈을 같은 이름으로 다시 내보내므로, `hwp_core::method::…`는 `hwp_com::method::…`나 `hwp_addon::method::…`로 쓰면 됩니다. `hwp_core`에 직접 의존해도 같은 타입이라 섞어 써도 됩니다.
+
 ---
 
 ## 빌드
@@ -116,8 +118,7 @@ HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
 한글이 DLL을 로드하여 내부에서 직접 실행합니다.
 
 ```rust
-use hwp_addon::{HwpObject, export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
-use hwp_core::ext::HwpExt;
+use hwp_addon::{HwpExt, HwpObject, export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
 
 pub struct MyPlugin;
 
@@ -132,7 +133,7 @@ impl HwpUserAction for MyPlugin {
         &ACTIONS
     }
 
-    fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
+    fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_addon::Result<bool> {
         if action_name == "MyAction" {
             hwp.insert_text("Rust 애드온에서 삽입!")?;
             return Ok(true);
@@ -167,7 +168,7 @@ OLE 클라이언트든 애드온이든 `HwpObject`를 얻은 뒤의 사용법은
 자주 쓰는 작업을 한 번의 호출로 묶어 둔 것입니다. `HwpExt` trait을 가져오면 쓸 수 있습니다.
 
 ```rust
-use hwp_core::ext::HwpExt;   // OLE 클라이언트는 hwp_com::HwpExt로도 가져올 수 있습니다
+use hwp_com::HwpExt;   // 애드온은 hwp_addon::HwpExt
 
 hwp.insert_text("텍스트")?;              // 커서 위치에 텍스트 삽입
 hwp.save_as_hwpx("C:\\out.hwpx")?;       // HWPX로 저장
@@ -183,7 +184,7 @@ let shape = hwp.current_char_shape()?;  // 커서 위치의 글자 모양
 **method** — `HwpAutomation` 문서의 method/property. `HwpObject`와 하위 객체에 직접 붙어 있습니다.
 
 ```rust
-use hwp_core::method::hwp_object::{GetTextFileFormat, ScanRange, mask};
+use hwp_com::method::hwp_object::{GetTextFileFormat, ScanRange, mask};   // 애드온은 hwp_addon::method::…
 
 let (list, para, pos) = hwp.get_pos()?;
 hwp.get_text_file(GetTextFileFormat::Unicode, false)?;
@@ -237,7 +238,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 
 ## `hwp_core` 핵심 타입
 
-자세한 내용은 [`hwp_core.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_core.md)를 참고하세요.
+`HwpObject`, `HwpError`, `HwpVer`, `HwpExt`는 `hwp_com`, `hwp_addon` 루트에서도 같은 이름으로 쓸 수 있습니다. 자세한 내용은 [`hwp_core.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_core.md)를 참고하세요.
 
 | 타입 | 설명 |
 |------|------|
