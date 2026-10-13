@@ -168,7 +168,7 @@ Methods:
 ### `HwpError` (`error.rs`)
 
 ```
-enum HwpError
+#[non_exhaustive] enum HwpError
 ├── ComError(windows::core::Error)
 ├── OleInitFailed
 ├── ConnectionFailed

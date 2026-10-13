@@ -1,7 +1,10 @@
 use thiserror::Error;
 
 /// 한글(HWP) OLE 제어 중 발생할 수 있는 모든 에러를 정의합니다.
+///
+/// `#[non_exhaustive]`이므로 `match`에는 `_` 갈래가 필요합니다.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum HwpError {
     // ---------------------------------------------------------
     // 1. 윈도우 OS / COM 시스템 에러 (가장 흔함)
