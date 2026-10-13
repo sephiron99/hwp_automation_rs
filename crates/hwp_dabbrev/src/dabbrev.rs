@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use hwp_addon::{
-    debug::log,
     text_edit::HwpEditExt,
     text_extract::{HwpTextExt, TextSegment},
 };
@@ -106,7 +105,7 @@ impl DabbrevPlugin {
                 restore_caret()?;
                 action.run("MoveSelParaBegin")?;
                 before = read_selection()?;
-                log("dabbrev", "직전 단어 검색: 문단 시작까지 선택 범위 확장");
+                tracing::debug!("직전 단어 검색: 문단 시작까지 선택 범위 확장");
             }
             restore_caret()?;
             action.run("MoveSelWordEnd")?;
@@ -137,12 +136,12 @@ impl DabbrevPlugin {
             None
         };
 
-        log(
-            "dabbrev",
-            &format!(
-                "{} words, prefix={prefix:?}, at_word={at_word}, char_after={char_after:?}",
-                words.len()
-            ),
+        tracing::debug!(
+            words = words.len(),
+            ?prefix,
+            at_word,
+            ?char_after,
+            "단어 수집"
         );
 
         // 두 모드 모두 문서 등장 순서를 유지하며 중복 후보를 제거한다.
@@ -157,7 +156,7 @@ impl DabbrevPlugin {
         } else {
             // 캐럿 바로 뒤에 단어가 붙어 있으면 next-word 확장하지 않는다.
             if char_after.is_some_and(is_word_char) {
-                log("dabbrev", "next-word: 캐럿 뒤가 단어 — 억제");
+                tracing::debug!("next-word: 캐럿 뒤가 단어 — 억제");
                 return Ok(false);
             }
             let trimmed = line.trim_end_matches(|c: char| !is_word_char(c));
@@ -167,11 +166,11 @@ impl DabbrevPlugin {
                 .map(strip_leading_nonword)
                 .filter(|w| !w.is_empty())
             else {
-                log("dabbrev", "next-word: 직전 단어 없음");
+                tracing::debug!("next-word: 직전 단어 없음");
                 return Ok(false);
             };
 
-            log("dabbrev", &format!("next-word mode: context={prev_word:?}"));
+            tracing::debug!(context = ?prev_word, "next-word mode");
             words
                 .windows(2)
                 .filter(|pair| pair[0] == prev_word)
@@ -182,7 +181,7 @@ impl DabbrevPlugin {
         };
 
         if candidates.is_empty() {
-            log("dabbrev", "매칭 없음");
+            tracing::debug!("매칭 없음");
             return Ok(true);
         }
 
@@ -201,10 +200,7 @@ impl DabbrevPlugin {
         let Some(first) = candidates.first() else {
             return Ok(());
         };
-        log(
-            "dabbrev",
-            &format!("expand {prefix:?} -> {first:?} (1/{})", candidates.len()),
-        );
+        tracing::debug!(?prefix, ?first, candidates = candidates.len(), "expand");
         insert_candidate(hwp, prefix.as_deref(), first)?;
 
         // winsafe 이벤트는 'static 클로저이므로 HwpObject와 prefix를 소유한다.
@@ -217,9 +213,9 @@ impl DabbrevPlugin {
 
         let forward_target = HWND::GetForegroundWindow();
         match ui_popup::show(candidates, replace_cb, forward_target) {
-            ui_popup::Outcome::Committed => log("dabbrev", "popup committed"),
+            ui_popup::Outcome::Committed => tracing::debug!("popup committed"),
             ui_popup::Outcome::Cancelled => {
-                log("dabbrev", "popup cancelled");
+                tracing::debug!("popup cancelled");
                 // prefix 모드 → 원래 prefix, next-word → 공백 뒤 원상태.
                 let _ = hwp.act().undo();
             }

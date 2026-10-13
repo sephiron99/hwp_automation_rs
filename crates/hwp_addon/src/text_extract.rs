@@ -92,7 +92,7 @@ impl<'h> TextWalker<'h> {
         if !self.finished {
             self.finished = true;
             if let Err(e) = self.hwp.release_scan() {
-                hwp_core::debug::log("text_extract", &format!("release_scan failed: {e}"));
+                tracing::warn!(error = %e, "release_scan 실패");
             }
         }
     }

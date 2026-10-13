@@ -22,7 +22,6 @@ use std::cell::{Cell, RefCell};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::rc::Rc;
 
-use hwp_addon::debug::log;
 use winsafe::{self as w, co, gui, msg::Wm, prelude::*};
 
 const POPUP_WIDTH: i32 = 200;
@@ -84,7 +83,7 @@ pub fn show(
     // unwind가 넘지 않도록 여기서 잡아 Cancelled로 처리.
     let (outcome, pending) = catch_unwind(AssertUnwindSafe(|| run_popup(candidates, replace)))
         .unwrap_or_else(|_| {
-            log("ui_popup", "popup panic — cancelled 처리");
+            tracing::error!("popup panic — cancelled 처리");
             (Outcome::Cancelled, None)
         });
 
@@ -199,7 +198,7 @@ fn run_popup(
     });
 
     if let Err(e) = wnd.run_main(None) {
-        log("ui_popup", &format!("run_main 오류: {e}"));
+        tracing::error!(error = %e, "run_main 오류");
     }
 
     (se.outcome.get(), se.pending.borrow_mut().take())

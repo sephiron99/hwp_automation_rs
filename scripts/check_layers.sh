@@ -16,7 +16,7 @@ check() { # check <dir...> -- <금지 모듈 정규식>
     fi
 }
 
-base=(com_util.rs debug.rs disp_obj.rs error.rs hwp_obj.rs hwp_ver.rs variant.rs)
+base=(com_util.rs disp_obj.rs error.rs hwp_obj.rs hwp_ver.rs variant.rs)
 check "${base[@]}" -- 'pset|method|actions|ext'
 check pset -- 'method|actions|ext'
 check method -- 'actions|ext'

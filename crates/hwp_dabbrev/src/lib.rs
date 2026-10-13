@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 
 // 액션마다 문서 전체에서 단어를 새로 추출하고, 완성 후보를 한 번에 표시한다.
-use hwp_addon::debug::log;
 use hwp_addon::export_hwp_addon;
 use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::shortcut::{Modifiers, ShortcutKey};
@@ -82,10 +81,12 @@ impl HwpUserAction for DabbrevPlugin {
     }
 
     fn on_load(&self, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
+        // 샘플이라 디버그 로그를 기본 경로에 남긴다. 실패해도 애드온 동작에는 영향 없음.
+        let _ = hwp_addon::logging::init_default(hwp_addon::logging::LevelFilter::DEBUG);
         match self.setup_toolbar(hwp) {
             Ok(v) => Ok(v),
             Err(e) => {
-                log("dabbrev:on_load", &format!("{e}"));
+                tracing::error!(error = %e, "on_load 실패");
                 Err(e)
             }
         }
@@ -96,7 +97,7 @@ impl HwpUserAction for DabbrevPlugin {
             ACTION_DABBREV => match self.expand(hwp) {
                 Ok(v) => Ok(v),
                 Err(e) => {
-                    log("dabbrev:expand", &format!("{e}"));
+                    tracing::error!(error = %e, "expand 실패");
                     Err(e)
                 }
             },

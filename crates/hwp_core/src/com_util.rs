@@ -19,7 +19,7 @@ fn invoke(
     } else {
         "CALL"
     };
-    // crate::debug::log("com_util", &format!("{kind} {name} (args={})", args.len()));
+    tracing::trace!(kind, name, args = args.len(), "invoke");
 
     let bstr_name = BSTR::from(name);
     let mut dispid: i32 = 0;
@@ -34,7 +34,7 @@ fn invoke(
         )?;
     }
 
-    // crate::debug::log("com_util", &format!("{kind} {name} → dispid={dispid}"));
+    tracing::trace!(kind, name, dispid, "dispid 조회");
 
     let dp = DISPPARAMS {
         cArgs: args.len() as u32,
@@ -74,17 +74,17 @@ fn invoke(
         };
 
         if let Some(desc) = desc {
-            crate::debug::log("com_util", &format!("{kind} {name} → EXCEP: {desc}"));
+            tracing::debug!(kind, name, %desc, "COM 예외");
             return Err(crate::error::HwpError::ExecutionFailed(format!(
                 "{name}: {desc}"
             )));
         }
 
-        crate::debug::log("com_util", &format!("{kind} {name} → ERR: {e}"));
+        tracing::debug!(kind, name, error = %e, "COM 호출 실패");
         return Err(e.into());
     }
 
-    // crate::debug::log("com_util", &format!("{kind} {name} → OK"));
+    tracing::trace!(kind, name, "OK");
     Ok(result)
 }
 
@@ -177,20 +177,17 @@ pub fn call_method_with_bstr_out(
         };
 
         if let Some(desc) = desc {
-            crate::debug::log(
-                "com_util",
-                &format!("CALL(bstr_out) {name} → EXCEP: {desc}"),
-            );
+            tracing::debug!(kind = "CALL(bstr_out)", name, %desc, "COM 예외");
             return Err(crate::error::HwpError::ExecutionFailed(format!(
                 "{name}: {desc}"
             )));
         }
 
-        crate::debug::log("com_util", &format!("CALL(bstr_out) {name} → ERR: {e}"));
+        tracing::debug!(kind = "CALL(bstr_out)", name, error = %e, "COM 호출 실패");
         return Err(e.into());
     }
 
-    // crate::debug::log("com_util", &format!("CALL(bstr_out) {name} → OK"));
+    tracing::trace!(kind = "CALL(bstr_out)", name, "OK");
 
     let text = ManuallyDrop::into_inner(out_bstr).to_string();
     Ok((result, text))
@@ -200,7 +197,7 @@ pub fn call_method_with_bstr_out(
 pub fn put_property(dispatch: &IDispatch, name: &str, value: VARIANT) -> Result<()> {
     use windows::Win32::System::Com::DISPATCH_PROPERTYPUT;
 
-    crate::debug::log("com_util", &format!("PUT {name}"));
+    tracing::trace!(kind = "PUT", name, "invoke");
 
     let bstr_name = BSTR::from(name);
     let mut dispid: i32 = 0;
@@ -215,7 +212,7 @@ pub fn put_property(dispatch: &IDispatch, name: &str, value: VARIANT) -> Result<
         )?;
     }
 
-    crate::debug::log("com_util", &format!("PUT {name} → dispid={dispid}"));
+    tracing::trace!(kind = "PUT", name, dispid, "dispid 조회");
 
     let mut args = [value];
     let mut named_arg: i32 = -3; // DISPID_PROPERTYPUT
@@ -253,16 +250,16 @@ pub fn put_property(dispatch: &IDispatch, name: &str, value: VARIANT) -> Result<
         };
 
         if let Some(desc) = desc {
-            crate::debug::log("com_util", &format!("PUT {name} → EXCEP: {desc}"));
+            tracing::debug!(kind = "PUT", name, %desc, "COM 예외");
             return Err(crate::error::HwpError::ExecutionFailed(format!(
                 "{name}: {desc}"
             )));
         }
 
-        crate::debug::log("com_util", &format!("PUT {name} → ERR: {e}"));
+        tracing::debug!(kind = "PUT", name, error = %e, "COM 호출 실패");
         return Err(e.into());
     }
 
-    // crate::debug::log("com_util", &format!("PUT {name} → OK"));
+    tracing::trace!(kind = "PUT", name, "OK");
     Ok(())
 }

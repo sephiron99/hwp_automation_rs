@@ -351,9 +351,14 @@ impl HwpObject {
         epos: u32,
     ) -> crate::error::Result<()> {
         let range_val = range.as_u32();
-        crate::debug::log(
-            "InitScan",
-            &format!("option=0x{option:02x}, range=0x{range_val:04x}, spara={spara}, spos={spos}, epara={epara}, epos={epos}"),
+        tracing::trace!(
+            option = format_args!("0x{option:02x}"),
+            range = format_args!("0x{range_val:04x}"),
+            spara,
+            spos,
+            epara,
+            epos,
+            "InitScan"
         );
         let ok: bool = self.call_with(
             "InitScan",
@@ -380,10 +385,7 @@ impl HwpObject {
             com_util::call_method_with_bstr_out(&self.dispatch, "GetText", vec![])?;
         let code = i32::from_variant(&result_var)?;
         let status = GetTextStatus::from_i32(code);
-        // crate::debug::log(
-        //     "GetText",
-        //     &format!("code={code}, status={status:?}, len={}, text={text:?}", text.len()),
-        // );
+        tracing::trace!(code, ?status, len = text.len(), "GetText");
         Ok((status, text))
     }
 
