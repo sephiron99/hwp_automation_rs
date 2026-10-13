@@ -53,6 +53,7 @@ Two modes of interacting with HWP:
 - 1~3층은 호출 하나에 COM 호출 하나를 대응시키고, 실패는 공통 에러 `HwpError`로 돌려준다. SDK가 성공 여부를 `BOOL`로 돌려주면 `false`를 `HwpError::ExecutionFailed`로 바꾼다. `BOOL`이 질문의 답이면 `Result<bool>`로 둔다. 에러를 삼키거나 기본값으로 대체하지 않는다(그런 처리는 `ext`). 인자를 enum으로 감싸는 것은 허용.
 - 호출을 둘 이상 묶거나, 기본값을 정하거나, 에러를 삼키는 코드는 `ext`에 둔다. `ext`는 아래 층의 공개 API만 쓴다.
 - 구조를 건드린 뒤에는 `cargo check`와 `scripts/check_layers.sh`(역방향 참조 검사)를 실행한다.
+- 한글 2022·2024에서 새로 생긴 API는 `#[cfg(feature = "v2022")]`/`v2024`로 감싼다. 이미 공개된 API는 감싸지 않는다(breaking). feature로 감싼 코드를 바꾼 뒤에는 `cargo check --all-features`도 실행한다. 자세한 규칙은 `hwp_core.md`의 "버전 feature".
 - 사용자 문서(`README.md`)에서는 4층을 드러내지 않고 "편의 API"와 "SDK 직접 사용(method, Action)" 두 갈래로만 설명한다.
 - 자세한 구조는 `hwp_core.md`, SDK method 미구현 목록은 `bind_progress.md`, Action 구현 계획은 `plan.md`.
 

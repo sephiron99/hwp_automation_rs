@@ -157,6 +157,21 @@ export_hwp_addon!(MyPlugin, MyPlugin);
 
 COM 호출 실패는 `debug`, 개별 COM 호출 흐름은 `trace` 레벨입니다.
 
+### 한글 버전 선택
+
+한글 2022, 2024에서 새로 생긴 API는 cargo feature를 켜야 쓸 수 있습니다. 아무것도 켜지 않으면 한글 2018 기준입니다.
+
+```toml
+[dependencies]
+hwp_com = { version = "0.3", features = ["v2022"] } # 한글 2022 이상을 대상으로 함
+```
+
+- `v2024`는 `v2022`를 포함합니다. `hwp_addon`도 같은 이름의 feature를 씁니다.
+- feature는 "이 버전 이상의 한글에서 실행한다"는 선언일 뿐이고, 실행 중인 한글 버전을 검사하지는 않습니다. 더 낮은 버전의 한글에서 그 API를 호출하면 SDK method·property는 `HwpError::UnknownMember`, Action은 `HwpError::ExecutionFailed`를 반환합니다.
+- docs.rs 문서에서는 이런 API에 "Available on crate feature v2022 only" 같은 표시가 붙습니다.
+
+아직 feature로 구분된 API는 없습니다.
+
 ---
 
 ## API 사용법

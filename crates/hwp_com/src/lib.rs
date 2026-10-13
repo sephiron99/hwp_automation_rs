@@ -12,6 +12,8 @@
 //! hwp.windows()?.active()?.set_visible(true)?; // 창 표시
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 // `hwp_core`에 따로 의존하지 않아도 되도록 사용자에게 필요한 타입과 층 모듈을 re-export한다.
 // 내부용 모듈(`com_util`, `disp_obj`, `hwp_obj`)은 re-export에서 제외한다.
 // 같은 항목이므로 `hwp_core::X`와 섞어 써도 된다.

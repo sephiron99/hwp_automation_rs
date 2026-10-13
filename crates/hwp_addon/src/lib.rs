@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 pub mod debug;
 pub mod ffi;
 pub mod hwp_user_action;

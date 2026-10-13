@@ -13,6 +13,9 @@ categories = ["api-bindings", "os::windows-apis"]
 [package.metadata.docs.rs]
 default-target = "i686-pc-windows-msvc"
 targets = ["i686-pc-windows-msvc"]
+# 버전 feature로 감싼 API도 문서에 나오게 하고, "Available on crate feature ..." 배지를 붙인다.
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 thiserror = "2.0.20"
@@ -49,3 +52,9 @@ features = [
     # "Win32_System_LibraryLoader", # DLL 경로 탐색 (GetModuleFileNameW)
     "Win32_Globalization",
 ]
+
+[features]
+# 최소 대상 한글 버전. 켜지 않으면 한글 2018 이상에서 쓸 수 있는 API만 노출한다.
+# 높은 버전 feature는 낮은 버전 feature를 포함한다. 규칙은 hwp_core.md "버전 feature" 참고.
+v2022 = []
+v2024 = ["v2022"]
