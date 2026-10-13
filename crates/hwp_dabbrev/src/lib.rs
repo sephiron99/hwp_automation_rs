@@ -1,11 +1,10 @@
 #![forbid(unsafe_code)]
 
 // 액션마다 문서 전체에서 단어를 새로 추출하고, 완성 후보를 한 번에 표시한다.
-use hwp_addon::export_hwp_addon;
 use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::shortcut::{Modifiers, ShortcutKey};
 use hwp_addon::text_extract::{HwpTextExt, TextSegment};
-use hwp_core::hwp_obj::HwpObject;
+use hwp_addon::{HwpObject, export_hwp_addon};
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_2;
 
 mod dabbrev;

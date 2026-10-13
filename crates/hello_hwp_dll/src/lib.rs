@@ -1,8 +1,7 @@
 use hwp_addon::debug::msgbox_err;
-use hwp_addon::export_hwp_addon;
 use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::text_extract::HwpTextExt;
-use hwp_core::hwp_obj::HwpObject;
+use hwp_addon::{HwpObject, export_hwp_addon};
 
 const TOOLBAR_DATA: &[u8] = include_bytes!("../toolbar.bmp");
 

@@ -1,6 +1,6 @@
 [package]
 name = "hello_hwp_dll"
-version = "0.2.0"
+version = "0.3.0"
 license = "MIT"
 edition = "2024"
 publish = false
@@ -10,5 +10,5 @@ name = "hello_hwp_dll"
 crate-type = ["cdylib"]
 
 [dependencies]
-hwp_addon = { path = "../hwp_addon" }
-hwp_core = { path = "../hwp_core" }
+hwp_addon = { version = "0.3.0", path = "../hwp_addon" }
+hwp_core = { version = "0.3.0", path = "../hwp_core" }

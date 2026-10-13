@@ -116,9 +116,8 @@ HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
 한글이 DLL을 로드하여 내부에서 직접 실행합니다.
 
 ```rust
-use hwp_addon::{export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
+use hwp_addon::{HwpObject, export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
 use hwp_core::ext::HwpExt;
-use hwp_core::hwp_obj::HwpObject;
 
 pub struct MyPlugin;
 
