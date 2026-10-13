@@ -8,7 +8,7 @@
 >
 > 이 라이브러리로 한글 오토메이션을 쓰는 것은 한컴의 이용 조건을 따릅니다. 한컴은 개인의 비상업적 이용만 자유롭게 허용하고, **상업적 이용에는 한컴의 별도 라이선스**를 요구합니다. 이 저장소의 MIT 라이선스는 이 저장소의 코드에만 적용됩니다. 자세한 내용은 [상표 및 권리 고지](#상표-및-권리-고지-trademark--rights-notice)를 참고하세요.
 
-SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구현상 가정은 [HWP 실전 노트](hwp_실전_노트.md)에 정리했습니다.
+SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구현상 가정은 [HWP 실전 노트](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_실전_노트.md)에 정리했습니다.
 
 ---
 
@@ -207,9 +207,9 @@ let ok: bool = hwp.call_with("Open", vec![/* .. */])?; // 래퍼가 없는 metho
 
 | 대상 | 현황 | 자세한 내용 |
 |---|---|---|
-| SDK method | IDL의 366개 중 31개 | [`bind_progress.md`](bind_progress.md) — 미구현 목록 |
-| Action | 530개 래퍼 (파라미터 없는 실행만) | [`plan.md`](plan.md) — 전체 Action 구현 계획 |
-| 이벤트 (`IHwpObjectEvents`) | 미구현 | [`bind_progress.md`](bind_progress.md) |
+| SDK method | IDL의 366개 중 31개 | [`bind_progress.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/bind_progress.md) — 미구현 목록 |
+| Action | 530개 래퍼 (파라미터 없는 실행만) | [`plan.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/plan.md) — 전체 Action 구현 계획 |
+| 이벤트 (`IHwpObjectEvents`) | 미구현 | [`bind_progress.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/bind_progress.md) |
 
 ---
 
@@ -228,7 +228,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 
 ## `hwp_core` 핵심 타입
 
-자세한 내용은 [`hwp_core.md`](hwp_core.md)를 참고하세요.
+자세한 내용은 [`hwp_core.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_core.md)를 참고하세요.
 
 | 타입 | 설명 |
 |------|------|
@@ -307,7 +307,7 @@ hwp.save_as(path, "HWPX", "")?;
 
 ## HWP SDK 문서
 
-공식 SDK 문서는 `hwp_sdk_doc/` 디렉토리에 있습니다 (gitignore됨). 포함 파일 목록은 [`hwp_sd_doc_종류.md`](hwp_sd_doc_종류.md)를 참고하세요.
+공식 SDK 문서는 `hwp_sdk_doc/` 디렉토리에 있습니다 (gitignore됨). 포함 파일 목록은 [`hwp_sd_doc_종류.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_sd_doc_종류.md)를 참고하세요.
 
 ---
 
