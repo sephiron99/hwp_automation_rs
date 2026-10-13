@@ -172,6 +172,7 @@ enum HwpError
 ├── ComError(windows::core::Error)
 ├── OleInitFailed
 ├── ConnectionFailed
+├── UnknownMember { member }   - DISP_E_UNKNOWNNAME (이름 없음, 낮은 한글 버전이거나 이름 오타)
 ├── ActionNotFound(String)
 ├── MissingParameter { action, param }
 ├── InvalidParameterType { param, details }
