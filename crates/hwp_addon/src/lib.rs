@@ -10,7 +10,19 @@ pub mod text_edit;
 pub mod text_extract;
 pub mod toolbar;
 
-pub use hwp_core::hwp_obj::HwpObject;
+// `hwp_core`에 따로 의존하지 않아도 되도록 사용자에게 필요한 타입과 층 모듈을 재수출한다.
+// 내부용 모듈(`com_util`, `disp_obj`, `hwp_obj`)은 내보내지 않는다.
+// 같은 항목이므로 `hwp_core::X`와 섞어 써도 된다.
+#[doc(no_inline)]
+pub use hwp_core::HwpObject;
+#[doc(no_inline)]
+pub use hwp_core::error::{HwpError, Result};
+#[doc(no_inline)]
+pub use hwp_core::ext::HwpExt;
+#[doc(no_inline)]
+pub use hwp_core::hwp_ver::HwpVer;
+#[doc(no_inline)]
+pub use hwp_core::{actions, error, ext, hwp_ver, method, pset, variant};
 
 // `export_hwp_addon!`이 사용자 크레이트에서 tracing 매크로를 쓰기 위한 재수출.
 #[doc(hidden)]

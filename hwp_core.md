@@ -38,6 +38,16 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 
 사용자 문서(`README.md`)에서는 이 네 층을 드러내지 않고 "편의 API"와 "SDK 직접 사용" 두 갈래로만 설명한다.
 
+### 재수출 정책
+
+사용자가 `hwp_core`에 따로 의존하지 않도록 `hwp_com`과 `hwp_addon`은 루트에서 같은 목록을 재수출한다.
+
+- 항목: `HwpObject`, `error::{HwpError, Result}`, `ext::HwpExt`, `hwp_ver::HwpVer`
+- 모듈: `error`, `hwp_ver`, `variant`, `pset`, `method`, `actions`, `ext`
+- 내보내지 않는 것: `com_util`, `disp_obj`, `hwp_obj` (내부용. `HwpObject`는 루트 재수출로 충분)
+- `#[doc(no_inline)]`을 붙여 문서가 복사되지 않고 `hwp_core` 링크로만 나오게 한다.
+- `hwp_core`에 공개 모듈을 새로 만들면 두 목록에 넣을지 정한다. `hwp_addon`에는 위 모듈과 같은 이름의 모듈을 만들지 않는다.
+
 ---
 
 ## 모듈 트리
@@ -127,7 +137,7 @@ Methods (hwp_obj.rs):
 + actions/mod.rs impl:
   act() -> Act<'_>            (Action 래퍼 핸들: hwp.act().undo()?, hwp.act().run("ActionId")?)
 
-+ ext::HwpExt trait (use hwp_core::ext::HwpExt 필요):
++ ext::HwpExt trait (use hwp_core::ext::HwpExt 또는 hwp_com::HwpExt / hwp_addon::HwpExt 필요):
   insert_text(text: &str) -> Result<()>
   save_as_hwpx(path: &str) -> Result<()>
   current_char_shape() -> Result<CharShape>

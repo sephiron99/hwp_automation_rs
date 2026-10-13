@@ -99,7 +99,6 @@ name = "hello_hwp_dll"
 version = "0.3.0"
 dependencies = [
  "hwp_addon",
- "hwp_core",
 ]
 
 [[package]]
@@ -139,7 +138,6 @@ name = "hwp_dabbrev"
 version = "0.3.0"
 dependencies = [
  "hwp_addon",
- "hwp_core",
  "tracing",
  "windows",
  "winsafe",

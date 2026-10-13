@@ -1,13 +1,10 @@
 use std::collections::HashSet;
 
 use hwp_addon::{
-    HwpObject,
+    HwpExt, HwpObject,
+    method::hwp_object::{ScanRange, mask},
     text_edit::HwpEditExt,
     text_extract::{HwpTextExt, TextSegment},
-};
-use hwp_core::{
-    ext::HwpExt,
-    method::hwp_object::{ScanRange, mask},
     variant::IntoVariant,
 };
 use winsafe::HWND;
@@ -37,11 +34,7 @@ fn is_match(word: &str, prefix: &str) -> bool {
 
 /// 후보를 삽입한다. prefix가 있으면 교체하고, next-word 모드에서는 직전
 /// 입력(space 등)과 undo 레코드가 병합되지 않도록 빈 범위를 선택한다.
-fn insert_candidate(
-    hwp: &HwpObject,
-    prefix: Option<&str>,
-    word: &str,
-) -> hwp_core::error::Result<()> {
+fn insert_candidate(hwp: &HwpObject, prefix: Option<&str>, word: &str) -> hwp_addon::Result<()> {
     if let Some(prefix) = prefix {
         hwp.replace_word_before(prefix, word)
     } else {
@@ -58,17 +51,14 @@ impl DabbrevPlugin {
     /// 문단 시작까지 범위를 넓혀 next-word 모드에 필요한 직전 단어도 읽는다.
     /// 뒤쪽은 원래 위치에서 `MoveSelWordEnd`로 선택하여 첫 글자를 얻는다.
     /// 각 방향의 기준 위치와 최종 캐럿 위치는 저장한 좌표에 `SetPos`하여 복원한다.
-    fn read_caret_context(
-        &self,
-        hwp: &HwpObject,
-    ) -> hwp_core::error::Result<(String, Option<char>)> {
+    fn read_caret_context(&self, hwp: &HwpObject) -> hwp_addon::Result<(String, Option<char>)> {
         hwp.call::<()>("UnSelectCtrl")?;
         let action = hwp.h_action()?;
         action.run("Cancel")?;
         action.run("Cancel")?;
         let (list, para, pos) = hwp.get_pos()?;
 
-        let restore_caret = || -> hwp_core::error::Result<()> {
+        let restore_caret = || -> hwp_addon::Result<()> {
             hwp.call_with(
                 "SetPos",
                 vec![
@@ -78,7 +68,7 @@ impl DabbrevPlugin {
                 ],
             )
         };
-        let read_selection = || -> hwp_core::error::Result<String> {
+        let read_selection = || -> hwp_addon::Result<String> {
             // 문서 경계 등에서 선택 범위가 생기지 않았다면 스캔하지 않는다.
             if hwp.get_pos()? == (list, para, pos) {
                 return Ok(String::new());
@@ -96,7 +86,7 @@ impl DabbrevPlugin {
             Ok(text)
         };
 
-        let result: hwp_core::error::Result<_> = (|| {
+        let result: hwp_addon::Result<_> = (|| {
             action.run("MoveSelWordBegin")?;
             let mut before = read_selection()?;
             if pos > 0 && !before.chars().any(char::is_alphanumeric) {
@@ -119,7 +109,7 @@ impl DabbrevPlugin {
         Ok(context)
     }
 
-    pub fn expand(&self, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
+    pub fn expand(&self, hwp: &HwpObject) -> hwp_addon::Result<bool> {
         let words = extract_all_words(hwp)?;
         let (line, char_after) = self.read_caret_context(hwp)?;
         // 스캔 끝의 문단 표시는 제거하되, next-word 모드의 구분자인 탭은 보존한다.
@@ -196,7 +186,7 @@ impl DabbrevPlugin {
         hwp: &HwpObject,
         prefix: Option<String>,
         candidates: Vec<String>,
-    ) -> hwp_core::error::Result<()> {
+    ) -> hwp_addon::Result<()> {
         let Some(first) = candidates.first() else {
             return Ok(());
         };

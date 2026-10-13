@@ -1,19 +1,31 @@
-/// 한글(HWP) OLE 클라이언트 라이브러리
-///
-/// 별도 프로세스에서 `CoCreateInstance` 또는 Running Object Table을 통해
-/// 한글을 제어합니다. ProgID: `"HwpFrame.HwpObject.2"`
-///
-/// # 사용 예
-/// ```ignore
-/// use hwp_com::HwpClient;
-///
-/// let hwp = HwpClient::new()?;       // 새 한글 인스턴스 시작
-/// hwp.run("FileNew")?;               // 새 문서
-/// hwp.windows()?.active()?.set_visible(true)?; // 창 표시
-/// ```
+//! 한글(HWP) OLE 클라이언트 라이브러리
+//!
+//! 별도 프로세스에서 `CoCreateInstance` 또는 Running Object Table을 통해
+//! 한글을 제어합니다. ProgID: `"HwpFrame.HwpObject.2"`
+//!
+//! # 사용 예
+//! ```ignore
+//! use hwp_com::HwpClient;
+//!
+//! let hwp = HwpClient::new()?;       // 새 한글 인스턴스 시작
+//! hwp.run("FileNew")?;               // 새 문서
+//! hwp.windows()?.active()?.set_visible(true)?; // 창 표시
+//! ```
+
+// `hwp_core`에 따로 의존하지 않아도 되도록 사용자에게 필요한 타입과 층 모듈을 재수출한다.
+// 내부용 모듈(`com_util`, `disp_obj`, `hwp_obj`)은 내보내지 않는다.
+// 같은 항목이므로 `hwp_core::X`와 섞어 써도 된다.
+#[doc(no_inline)]
+pub use hwp_core::HwpObject;
+#[doc(no_inline)]
 pub use hwp_core::error::{HwpError, Result};
+#[doc(no_inline)]
 pub use hwp_core::ext::HwpExt;
-pub use hwp_core::hwp_obj::HwpObject;
+#[doc(no_inline)]
+pub use hwp_core::hwp_ver::HwpVer;
+#[doc(no_inline)]
+pub use hwp_core::{actions, error, ext, hwp_ver, method, pset, variant};
+
 use windows::Win32::System::Com::{
     CLSCTX_LOCAL_SERVER, CLSIDFromProgID, CoCreateInstance, CreateBindCtx, GetRunningObjectTable,
     IDispatch,
