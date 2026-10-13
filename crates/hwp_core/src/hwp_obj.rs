@@ -55,6 +55,9 @@ impl HwpObject {
     }
 
     /// 현재 한글 버전을 반환합니다.
+    ///
+    /// `HwpObject`를 만들 때 한글의 `Version` property를 한 번 읽어 둔 값입니다.
+    /// 읽기에 실패했거나 알 수 없는 형식이면 `HwpVer::Other(0, 0)`입니다.
     pub fn version(&self) -> &HwpVer {
         &self.ver
     }
