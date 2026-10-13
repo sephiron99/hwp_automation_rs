@@ -1,7 +1,10 @@
 use thiserror::Error;
 
 /// 한글(HWP) OLE 제어 중 발생할 수 있는 모든 에러를 정의합니다.
+///
+/// `#[non_exhaustive]`이므로 `match`에는 `_` 갈래가 필요합니다.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum HwpError {
     // ---------------------------------------------------------
     // 1. 윈도우 OS / COM 시스템 에러 (가장 흔함)
@@ -14,6 +17,13 @@ pub enum HwpError {
 
     #[error("한글(HWP) 객체를 생성할 수 없습니다. 한글이 설치되어 있는지 확인하세요.")]
     ConnectionFailed,
+
+    /// COM 객체에 그 이름의 method/property가 없습니다(`DISP_E_UNKNOWNNAME`).
+    ///
+    /// 실행 중인 한글이 그 기능을 지원하지 않는 낮은 버전이면 이 에러가 납니다.
+    /// 이름 오타나 다른 종류의 객체에 호출한 경우에도 같은 에러가 납니다.
+    #[error("COM 객체에 '{member}'이(가) 없습니다. 실행 중인 한글 버전이 지원하지 않는 기능일 수 있습니다.")]
+    UnknownMember { member: String },
 
     // ---------------------------------------------------------
     // 2. 액션(Action) 및 파라미터(Parameter) 논리 에러

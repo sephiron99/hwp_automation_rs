@@ -1,11 +1,38 @@
-use crate::error::Result;
+use crate::error::{HwpError, Result};
 use std::mem::ManuallyDrop;
 use windows::core::{BSTR, GUID, PCWSTR};
+use windows::Win32::Foundation::DISP_E_UNKNOWNNAME;
 use windows::Win32::Globalization::LOCALE_USER_DEFAULT;
 use windows::Win32::System::Com::{
     IDispatch, DISPATCH_FLAGS, DISPATCH_METHOD, DISPATCH_PROPERTYGET, DISPPARAMS, EXCEPINFO,
 };
 use windows::Win32::System::Variant::*;
+
+/// 이름으로 DISPID를 조회합니다.
+///
+/// 객체에 그 이름이 없으면(`DISP_E_UNKNOWNNAME`) [`HwpError::UnknownMember`]를 반환합니다.
+fn get_dispid(dispatch: &IDispatch, name: &str) -> Result<i32> {
+    let bstr_name = BSTR::from(name);
+    let mut dispid: i32 = 0;
+
+    let hr = unsafe {
+        dispatch.GetIDsOfNames(
+            &GUID::zeroed(),
+            &PCWSTR(bstr_name.as_ptr()),
+            1,
+            LOCALE_USER_DEFAULT,
+            &mut dispid,
+        )
+    };
+
+    match hr {
+        Ok(()) => Ok(dispid),
+        Err(e) if e.code() == DISP_E_UNKNOWNNAME => Err(HwpError::UnknownMember {
+            member: name.to_string(),
+        }),
+        Err(e) => Err(e.into()),
+    }
+}
 
 /// IDispatch::Invoke를 호출하는 내부 함수
 fn invoke(
@@ -21,18 +48,7 @@ fn invoke(
     };
     tracing::trace!(kind, name, args = args.len(), "invoke");
 
-    let bstr_name = BSTR::from(name);
-    let mut dispid: i32 = 0;
-
-    unsafe {
-        dispatch.GetIDsOfNames(
-            &GUID::zeroed(),
-            &PCWSTR(bstr_name.as_ptr()),
-            1,
-            LOCALE_USER_DEFAULT,
-            &mut dispid,
-        )?;
-    }
+    let dispid = get_dispid(dispatch, name)?;
 
     tracing::trace!(kind, name, dispid, "dispid 조회");
 
@@ -117,18 +133,7 @@ pub fn call_method_with_bstr_out(
     name: &str,
     extra_args: Vec<VARIANT>,
 ) -> Result<(VARIANT, String)> {
-    let bstr_name = BSTR::from(name);
-    let mut dispid: i32 = 0;
-
-    unsafe {
-        dispatch.GetIDsOfNames(
-            &GUID::zeroed(),
-            &PCWSTR(bstr_name.as_ptr()),
-            1,
-            LOCALE_USER_DEFAULT,
-            &mut dispid,
-        )?;
-    }
+    let dispid = get_dispid(dispatch, name)?;
 
     // BSTR* 출력 매개변수 준비
     let mut out_bstr = ManuallyDrop::new(BSTR::new());
@@ -199,18 +204,7 @@ pub fn put_property(dispatch: &IDispatch, name: &str, value: VARIANT) -> Result<
 
     tracing::trace!(kind = "PUT", name, "invoke");
 
-    let bstr_name = BSTR::from(name);
-    let mut dispid: i32 = 0;
-
-    unsafe {
-        dispatch.GetIDsOfNames(
-            &GUID::zeroed(),
-            &PCWSTR(bstr_name.as_ptr()),
-            1,
-            LOCALE_USER_DEFAULT,
-            &mut dispid,
-        )?;
-    }
+    let dispid = get_dispid(dispatch, name)?;
 
     tracing::trace!(kind = "PUT", name, dispid, "dispid 조회");
 
