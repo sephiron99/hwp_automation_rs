@@ -302,7 +302,7 @@ binding 있음: `GetDefault`, `Execute`, `PopupDialog`, `Run`
 
 대응하는 Rust 타입 자체가 없다.
 
-- [ ] `GetAnchorPos() -> IDispatch`
+- [ ] `GetAnchorPos(type: long) -> IDispatch`
 
 ## `IXHwpDocuments` — 미구현 3 / 5
 

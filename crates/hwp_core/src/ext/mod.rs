@@ -9,13 +9,19 @@
 //! hwp.insert_text("Hello")?;
 //! ```
 pub mod char_shape;
+pub mod hwpml_caret;
 pub mod para_shape;
 
 pub use char_shape::CharShape;
+pub use hwpml_caret::HwpmlCaret;
 pub use para_shape::ParaShape;
 
-use crate::error::Result;
+use crate::error::{HwpError, Result};
 use crate::hwp_obj::HwpObject;
+use crate::method::hwp_object::GetTextFileFormat;
+
+/// [`HwpExt::hwpml_with_caret`]가 커서 자리에 잠깐 넣는 책갈피의 이름
+const CARET_BOOKMARK: &str = "__hwp_core_caret__";
 
 /// [`HwpObject`]에 편의 메서드를 추가하는 extension trait.
 pub trait HwpExt {
@@ -47,6 +53,17 @@ pub trait HwpExt {
     /// `FormatSpec` 캡처 — 삽입 후 원본 문단 모양을 재적용하거나
     /// 열 폭(column width) 추정에 활용합니다.
     fn current_para_shape(&self) -> Result<ParaShape>;
+
+    /// 현재 문서의 HWPML과, 그 안에서 커서가 있는 위치를 반환합니다.
+    ///
+    /// `GetPos`의 `(list, para, pos)`와 HWPML의 `CARETPOS`는 같은 번호를 담고 있지만,
+    /// HWPML 본문 요소에는 그 번호에 대응하는 속성이 없습니다. 그래서 커서 자리에
+    /// 책갈피를 넣고 `GetTextFile("HWPML2X")`을 받은 뒤, 실행 취소(`Undo`)로 책갈피를
+    /// 되돌리고 HWPML에서 그 책갈피가 있던 자리를 찾습니다.
+    ///
+    /// 문서를 잠깐 수정하므로 문서의 수정 상태와 다시 실행(`Redo`) 기록이 바뀝니다.
+    /// 선택 블록이 없는 상태에서 호출합니다.
+    fn hwpml_with_caret(&self) -> Result<HwpmlCaret>;
 }
 
 impl HwpExt for HwpObject {
@@ -103,5 +120,39 @@ impl HwpExt for HwpObject {
             prev_spacing: ps.get("PrevSpacing").unwrap_or(0),
             next_spacing: ps.get("NextSpacing").unwrap_or(0),
         })
+    }
+
+    fn hwpml_with_caret(&self) -> Result<HwpmlCaret> {
+        let action = self.h_action()?;
+        let pset = self.h_parameter_set()?;
+        let bookmark = pset.h_book_mark()?;
+        let hset = bookmark.h_set()?;
+        action.get_default("Bookmark", &hset)?;
+        bookmark.set_name(CARET_BOOKMARK)?;
+        bookmark.set_type(0)?;
+        bookmark.set_command(0)?;
+        action.execute("Bookmark", &hset)?;
+
+        // 책갈피는 HWPML을 얻지 못했어도 되돌린다.
+        let hwpml = self.get_text_file(GetTextFileFormat::HwpMl2X, false);
+        self.act().undo()?;
+        let mut hwpml = hwpml?;
+
+        let marker = format!("<BOOKMARK Name=\"{CARET_BOOKMARK}\"/>");
+        let mut offset = hwpml.find(&marker).ok_or_else(|| {
+            HwpError::ExecutionFailed("HWPML에서 커서 책갈피를 찾지 못했습니다.".to_string())
+        })?;
+        hwpml.replace_range(offset..offset + marker.len(), "");
+
+        // 글자 사이에 넣은 책갈피는 `CHAR`를 둘로 나누므로, 나뉜 것을 다시 잇는다.
+        const SPLIT: &str = "</CHAR><CHAR>";
+        let close = "</CHAR>".len();
+        if let Some(start) = offset.checked_sub(close)
+            && hwpml.get(start..).is_some_and(|s| s.starts_with(SPLIT))
+        {
+            hwpml.replace_range(start..start + SPLIT.len(), "");
+            offset = start;
+        }
+        Ok(HwpmlCaret { hwpml, offset })
     }
 }

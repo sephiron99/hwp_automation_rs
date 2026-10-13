@@ -43,6 +43,7 @@ hwp_automation_rs/
 │   ├── hwp_addon/       # 애드온 DLL 프레임워크 (HwpUserAction 트레이트, vtable)
 │   ├── hello_hwp_ole/   # OLE 클라이언트 예제
 │   ├── hello_hwp_dll/   # 애드온 DLL 예제
+│   ├── test_hwpml_caret/ # `hwpml_with_caret` 실환경 검증용 애드온 DLL
 │   └── hwp_dabbrev/     # Emacs dabbrev 스타일 자동완성 애드온
 └── HncUserActionSample/ # C++ 애드온 레퍼런스 샘플
 ```
@@ -52,6 +53,7 @@ hwp_automation_rs/
 ```
 hwp_core  ←──  hwp_com    ←──  hello_hwp_ole  (OLE 예제 바이너리)
           ←──  hwp_addon  ←──  hello_hwp_dll  (애드온 DLL 예제)
+                          ←──  test_hwpml_caret (hwpml_with_caret 검증용 DLL)
                           ←──  hwp_dabbrev    (dabbrev 애드온)
 ```
 
@@ -188,7 +190,11 @@ use hwp_com::HwpExt;   // 애드온은 hwp_addon::HwpExt
 hwp.insert_text("텍스트")?;              // 커서 위치에 텍스트 삽입
 hwp.save_as_hwpx("C:\\out.hwpx")?;       // HWPX로 저장
 let shape = hwp.current_char_shape()?;  // 커서 위치의 글자 모양
+let doc = hwp.hwpml_with_caret()?;      // 문서의 HWPML과 그 안의 커서 위치
+let (before, after) = doc.hwpml.split_at(doc.offset);
 ```
+
+`hwpml_with_caret`은 커서 자리에 책갈피를 잠깐 넣어 `GetTextFile("HWPML2X")` 출력에서 그 자리를 찾고, 실행 취소(Undo)로 책갈피를 되돌립니다. `GetPos` 값과 HWPML의 `CARETPOS`는 리스트·문단·글자 번호일 뿐이고, HWPML 본문 요소에는 그 번호에 대응하는 속성이 없어 커서가 HWPML의 어디인지 알 수 없기 때문입니다. 문서를 잠깐 수정하므로 수정 상태와 다시 실행(Redo) 기록이 바뀌며, 선택 블록이 없는 상태에서 호출해야 합니다.
 
 애드온에서는 `hwp_addon`의 `HwpTextExt`(문서 텍스트 순회), `HwpEditExt`(커서 앞 문자 교체)도 같은 방식으로 씁니다.
 
@@ -294,7 +300,7 @@ hwp.act().char_shape_bold()?;
 
 **2. 편의 API는 `HwpExt` trait을 가져와야 쓸 수 있습니다.**
 
-`insert_text`, `save_as_hwpx`, `current_char_shape`, `current_para_shape`가 해당됩니다.
+`insert_text`, `save_as_hwpx`, `current_char_shape`, `current_para_shape`, `hwpml_with_caret`이 해당됩니다.
 
 ```rust
 use hwp_core::ext::HwpExt;   // 또는 hwp_com::HwpExt

@@ -75,7 +75,7 @@ hwp_core (lib.rs)
 ├── hwp_obj        - HwpObject (최상위 API 진입점)
 │
 │  ── 1. ParameterSet 타입 ──
-├── pset           - HParameterSet, HCharShape, HParaShape, HInsertText
+├── pset           - HParameterSet, HCharShape, HParaShape, HInsertText, HBookMark
 │
 │  ── 2. SDK method ──
 ├── method
@@ -103,7 +103,7 @@ hwp_core (lib.rs)
 │   └── macro_     - 매크로/빠른 교정/빠른 책갈피
 │
 │  ── 4. 편의 API ──
-└── ext            - HwpExt trait, CharShape, ParaShape
+└── ext            - HwpExt trait, CharShape, ParaShape, HwpmlCaret
 ```
 
 ---
@@ -153,6 +153,7 @@ Methods (hwp_obj.rs):
   save_as_hwpx(path: &str) -> Result<()>
   current_char_shape() -> Result<CharShape>
   current_para_shape() -> Result<ParaShape>
+  hwpml_with_caret() -> Result<HwpmlCaret>   (HWPML과 그 안의 커서 바이트 위치. 책갈피 삽입 → GetTextFile → Undo)
 ```
 
 ---
@@ -305,6 +306,7 @@ HParameterSet      - 파라미터 셋 컨테이너
   h_insert_text() -> HInsertText
   h_char_shape() -> HCharShape
   h_para_shape() -> HParaShape
+  h_book_mark() -> HBookMark
 
 HInsertText        - 텍스트 삽입 파라미터
   h_set() -> DispObj
@@ -313,6 +315,12 @@ HInsertText        - 텍스트 삽입 파라미터
 
 HCharShape, HParaShape
   h_set() -> DispObj
+
+HBookMark          - 책갈피 파라미터 (Bookmark, ModifyBookmark 액션)
+  h_set() -> DispObj
+  name() -> String / set_name(name: &str)
+  type_() -> u32 / set_type(type_: u32)          (0 = 일반, 1 = 블록)
+  command() -> u32 / set_command(command: u32)   (0 = 생성, 1 = 이동, 2 = 수정)
 ```
 
 ---

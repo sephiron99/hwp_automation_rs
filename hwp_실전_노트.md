@@ -245,6 +245,33 @@ WSL 빌드에서는 Rust 컴파일과 Windows 링커 실행을 구분한다. 현
 
 근거: [애드온 로그 구독자](crates/hwp_addon/src/logging.rs), [COM 호출 로그](crates/hwp_core/src/com_util.rs), [링커 설정](.cargo/config.toml).
 
+## 11. HWPML에서 현재 커서 위치는 책갈피 표식으로 찾는다
+
+이 절은 2026-10-14에 추가했다. 관찰 기록은 사용자가 Windows 실환경에서 `GetTextFile("HWPML2X")` 출력을 직접 확인한 것이며, 출력의 `HWPML` 요소는 `Version="2.91"`, `SubVersion="10.0.0.0"`이었다. 한글 버전은 기록돼 있지 않다.
+
+### `GetPos` 값과 `CARETPOS`로는 찾을 수 없다
+
+**관찰 기록.** `GetTextFile("HWPML2X")` 출력의 `HEAD > DOCSETTING`에 `<CARETPOS List=".." Para=".." Pos=".."/>`가 들어간다. `GetTextFile`은 저장된 파일이 아니라 현재 문서를 기준으로 반환하므로, 이 값도 호출 시점의 커서다. 다만 담긴 것이 `GetPos`와 같은 번호 세 개라서 본문의 어느 요소인지는 알려 주지 않는다.
+
+**명세 대조.** `한글문서파일형식3.0_HWPML_revision1.2.pdf`의 `CARETPOS`(표 15)는 `GetPos`와 같은 리스트 아이디·문단 아이디·글자 위치를 담지만 번호를 매기는 규칙은 설명하지 않는다. 본문 쪽 `P`(표 68)에는 문단 번호에 해당하는 속성이 없고, `PARALIST`(표 96)의 `LinkListID`는 설명 칸이 비어 있다. 실제 출력의 표 셀 `PARALIST`는 모두 `LinkListID="0"`이었다. 그래서 `GetPos`의 `(list, para, pos)`를 HWPML 요소에 맞출 근거가 없고, 특히 본문 밖(`list != 0`)에서는 방법이 없다.
+
+### 책갈피는 이름과 함께 제자리에 출력된다
+
+**관찰 기록.** 책갈피는 `<TEXT>` 안에 `<BOOKMARK Name="처음"/>` 형태로 나온다. 본문 문단뿐 아니라 표 셀 안에서도 넣은 자리 그대로 나오며, 글자 사이에 넣으면 `<CHAR> 임</CHAR><BOOKMARK Name="다음"/><CHAR> 병 직</CHAR>`처럼 `CHAR`가 둘로 나뉜다.
+
+**구현 선택.** `HwpExt::hwpml_with_caret`은 커서 자리에 `__hwp_core_caret__`이라는 이름의 책갈피를 `Bookmark` Action으로 넣고, HWPML을 받은 뒤 `Undo`로 책갈피를 되돌린다. 반환하는 HWPML에서는 그 `BOOKMARK` 요소를 빼고, 요소가 있던 바이트 위치를 커서 위치로 돌려준다. 책갈피가 글자 사이에 들어가 `CHAR`가 둘로 나뉜 경우에는 `</CHAR><CHAR>`도 빼서 원래의 한 `CHAR`로 되돌린다.
+
+**관찰 기록.** 2026-10-14에 사용자가 `test_hwpml_caret` 애드온으로 본문 문단 중간(`GetPos` = `(0, 16, 154)`)에서 실행했다. `Bookmark` Action은 `HAction.Execute`로 실행됐고, 호출 전후의 `GetPos` 값이 같았으며, 호출 후 `GetTextFile("HWPML2X")` 출력이 호출 전과 같았다. 즉 이 위치에서는 `Undo` 한 번으로 문서와 커서가 원래대로 돌아왔다.
+
+**미확인 가정.** 다음은 아직 확인하지 않았다.
+
+- 나뉜 `CHAR`를 다시 이으면 반환한 HWPML의 본문이 호출 전 문서와 같아지는가. 잇기 전에는 달랐고, 원인을 `CHAR` 분할로 추정해 고친 것이다.
+- 표 셀, 각주, 머리말 같은 본문 밖 위치에서도 `Undo`로 문서와 커서가 돌아오고 책갈피가 제자리에 출력되는가.
+- 직전에 사용자의 편집이 있을 때도 `Undo` 한 번이 책갈피 삽입만 되돌리는가.
+- 선택 블록이 있을 때 `Type = 0`으로 넣으면 어떻게 되는가. 현재 문서는 선택 블록이 없을 때만 쓰라고 안내한다.
+
+근거: [편의 API](crates/hwp_core/src/ext/mod.rs), [책갈피 ParameterSet](crates/hwp_core/src/pset/mod.rs).
+
 ## 기존 문서·주석을 읽을 때의 정정 사항
 
 오래된 설명을 다시 구현 근거로 삼지 않도록 차이를 남긴다. 아래 항목은 현재 코드와 SDK를 대조한 결과이며, 이 문서 작성으로 해당 소스나 과거 문서를 일괄 수정하지는 않았다.

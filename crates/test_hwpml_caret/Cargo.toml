@@ -1,0 +1,22 @@
+[package]
+name = "test_hwpml_caret"
+version = "0.3.0"
+license = "MIT"
+edition = "2024"
+publish = false
+
+[lib]
+name = "test_hwpml_caret"
+crate-type = ["cdylib"]
+
+[dependencies]
+hwp_addon = { version = "0.3.0", path = "../hwp_addon" }
+
+[dependencies.windows]
+version = "0.62.2"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+]

@@ -285,6 +285,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "test_hwpml_caret"
+version = "0.3.0"
+dependencies = [
+ "hwp_addon",
+ "windows",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"

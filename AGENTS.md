@@ -38,6 +38,7 @@ Two modes of interacting with HWP:
 - **`hwp_addon`** — add-on framework, `HwpUserAction` trait, `#[repr(C)]` vtable structs
 - **`hello_hwp_ole`** (pkg: `hello_hwp_com`) — example binary using OLE client approach
 - **`hello_hwp_dll`** — example add-on DLL using `hwp_addon` framework
+- **`test_hwpml_caret`** — add-on DLL for verifying `HwpExt::hwpml_with_caret` in a real HWP
 - **`hwp_dabbrev`** — hwp dynamic abbreviation addon like emacs's dabbrev.
   Sample project.
 
