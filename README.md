@@ -17,7 +17,7 @@ SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구�
 - **두 가지 연동 방식**: OLE 클라이언트(`hwp_com`) / 애드온 DLL(`hwp_addon`)
 - **편의 API와 SDK 직접 사용**: 자주 쓰는 작업은 편의 API로, 그 밖의 것은 SDK method와 Action(530개 래퍼)을 그대로 호출
 - **타입 안전한 API**: `HwpVer`, `ScanRange` 등 래퍼 타입을 제공하고, 한글이 `false`로 알리는 실패까지 `HwpError`로 통일해 `?`로 처리
-- **버전 감지**: 실행 중인 한글 버전(V2018 / V2022 / V2024)을 자동으로 감지
+- **버전 확인**: `hwp.version()`으로 실행 중인 한글 버전을 `HwpVer`(V2018 / V2022 / V2024 / `Other`)로 확인. 버전을 읽지 못하면 `Other(0, 0)`
 - **WSL 지원**: WSL 환경에서 `i686-pc-windows-msvc` 크로스 컴파일 가능
 
 ---

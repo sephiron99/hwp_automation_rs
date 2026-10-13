@@ -122,7 +122,7 @@ HwpObject
 Methods (hwp_obj.rs):
   new(dispatch: IDispatch) -> Result<Self>
   from_raw_dispatch(raw: *mut c_void) -> Result<Self>  [unsafe]
-  version() -> &HwpVer
+  version() -> &HwpVer      (생성 시 읽은 값. 읽기 실패 시 Other(0, 0))
   get<T: FromVariant>(name: &str) -> Result<T>
   call<T: FromVariant>(name: &str) -> Result<T>
   call_with<T: FromVariant>(name: &str, args: Vec<VARIANT>) -> Result<T>
@@ -171,7 +171,7 @@ Methods:
   from_version_string(v: &str) -> Self
   is_at_least(required: &HwpVer) -> bool
   display_name() -> String
-  as_number() -> (u8, u8)
+  as_number() -> (u8, u8)   (private)
 ```
 
 ---
