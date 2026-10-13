@@ -44,7 +44,7 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 
 - 항목: `HwpObject`, `error::{HwpError, Result}`, `ext::HwpExt`, `hwp_ver::HwpVer`
 - 모듈: `error`, `hwp_ver`, `variant`, `pset`, `method`, `actions`, `ext`
-- 내보내지 않는 것: `com_util`, `disp_obj`, `hwp_obj` (내부용. `HwpObject`는 루트 재수출로 충분)
+- 제외하는 것: `com_util`, `disp_obj`, `hwp_obj` (내부용. `HwpObject`는 루트 재수출로 충분)
 - `#[doc(no_inline)]`을 붙여 문서가 복사되지 않고 `hwp_core` 링크로만 나오게 한다.
 - `hwp_core`에 공개 모듈을 새로 만들면 두 목록에 넣을지 정한다. `hwp_addon`에는 위 모듈과 같은 이름의 모듈을 만들지 않는다.
 
