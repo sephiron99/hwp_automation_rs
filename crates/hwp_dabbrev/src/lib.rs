@@ -3,13 +3,10 @@
 // 액션마다 문서 전체에서 단어를 새로 추출하고, 완성 후보를 한 번에 표시한다.
 use hwp_addon::debug::log;
 use hwp_addon::export_hwp_addon;
-use hwp_addon::hwp_user_action::{
-    ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget, action_str,
-};
+use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::shortcut::{Modifiers, ShortcutKey};
 use hwp_addon::text_extract::{HwpTextExt, TextSegment};
 use hwp_core::hwp_obj::HwpObject;
-use std::ffi::CStr;
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_2;
 
 mod dabbrev;
@@ -17,8 +14,7 @@ mod ui_popup;
 
 const TOOLBAR_DATA: &[u8] = include_bytes!("../toolbar.bmp");
 
-const ACTION_DABBREV: &CStr = c"DabbrevExpand";
-const ACTION_DABBREV_STR: &str = action_str(ACTION_DABBREV);
+const ACTION_DABBREV: &str = "DabbrevExpand";
 
 static CONFIG: ToolbarConfig = ToolbarConfig {
     name: "dabbrev",
@@ -97,7 +93,7 @@ impl HwpUserAction for DabbrevPlugin {
 
     fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
         match action_name {
-            ACTION_DABBREV_STR => match self.expand(hwp) {
+            ACTION_DABBREV => match self.expand(hwp) {
                 Ok(v) => Ok(v),
                 Err(e) => {
                     log("dabbrev:expand", &format!("{e}"));

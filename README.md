@@ -125,7 +125,7 @@ pub struct MyPlugin;
 impl HwpUserAction for MyPlugin {
     fn actions(&self) -> &'static [ActionMeta] {
         static ACTIONS: [ActionMeta; 1] = [ActionMeta {
-            name: c"MyAction",
+            name: "MyAction",
             label: "내 액션",
             image_index: 0,
             shortcut: None,
@@ -244,37 +244,6 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 ---
 
 ## Breaking changes
-
-### hwp_addon 0.3.0
-
-`ActionMeta::name`의 타입이 `&'static str`에서 `&'static CStr`로 바뀌었습니다. 액션 이름은 C 문자열 리터럴로 적습니다.
-
-```rust
-// 0.2.x
-ActionMeta { name: "MyAction", /* .. */ }
-
-// 0.3.0
-ActionMeta { name: c"MyAction", /* .. */ }
-```
-
-`do_action`에서 이름을 `match` 패턴으로 쓰던 코드는 `action_str`로 `&str` 상수를 만들면 됩니다. `do_action`이 받는 `action_name`은 그대로 `&str`입니다.
-
-```rust
-use std::ffi::CStr;
-use hwp_addon::hwp_user_action::action_str;
-
-const MY_ACTION: &CStr = c"MyAction";
-const MY_ACTION_STR: &str = action_str(MY_ACTION);
-
-fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
-    match action_name {
-        MY_ACTION_STR => { /* .. */ Ok(true) }
-        _ => Ok(false),
-    }
-}
-```
-
-`HwpUserAction::enum_action`을 직접 오버라이드했다면 반환 타입이 `Option<&'static CStr>`로 바뀝니다. 예약 GUID의 C 문자열 상수 `UUIDCSTR_ON_INITIAL_LOAD`, `UUIDCSTR_ON_LOAD`가 새로 생겼고, 기존 `UUIDSTR_*`(`&str`)는 그대로입니다.
 
 ### 0.2.0
 

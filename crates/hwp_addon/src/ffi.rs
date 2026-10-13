@@ -1,6 +1,7 @@
 use crate::hwp_user_action::HwpUserAction;
 use hwp_core::hwp_obj::HwpObject;
-use std::ffi::{c_char, c_void};
+use std::ffi::{CString, c_char, c_void};
+use std::sync::OnceLock;
 
 // =========================================================================
 // C++ IHncUserActionModule vtable 호환 레이아웃
@@ -57,12 +58,50 @@ pub struct IHncUserActionModuleVtbl {
 /// ```text
 /// [0..4]  lpVtbl → IHncUserActionModuleVtbl (C++ vptr 위치)
 /// [4..]   plugin  (사용자 구현 HwpUserAction)
+/// [..]    action_names (EnumAction 반환용 C 문자열 캐시)
 /// ```
 #[repr(C)]
 #[allow(non_snake_case)]
 pub struct RustActionModule<T: HwpUserAction> {
     pub lpVtbl: *const IHncUserActionModuleVtbl,
     pub plugin: T,
+    /// `EnumAction`이 돌려줄 NUL 종료 액션 이름. 첫 `EnumAction` 호출 때 한 번
+    /// 채우고 이후 바꾸지 않는다. 모듈이 `static`이므로 각 `CString`의 주소는
+    /// DLL이 로드된 동안 유효하고 내용도 그대로다.
+    action_names: OnceLock<Box<[CString]>>,
+}
+
+impl<T: HwpUserAction> RustActionModule<T> {
+    /// `export_hwp_addon!` 매크로가 `static MODULE`을 만들 때 쓰는 생성자.
+    pub const fn new(lp_vtbl: *const IHncUserActionModuleVtbl, plugin: T) -> Self {
+        Self {
+            lpVtbl: lp_vtbl,
+            plugin,
+            action_names: OnceLock::new(),
+        }
+    }
+
+    /// `enum_action(0..)`을 끝까지 열거해 C 문자열로 변환한 목록.
+    ///
+    /// 이름 중간에 NUL이 있으면 C 문자열로 표현할 수 없으므로 로그를 남기고
+    /// 건너뛴다.
+    fn action_names(&self) -> &[CString] {
+        self.action_names.get_or_init(|| {
+            (0..)
+                .map_while(|n| self.plugin.enum_action(n))
+                .filter_map(|name| match CString::new(name) {
+                    Ok(c) => Some(c),
+                    Err(_) => {
+                        crate::debug::log(
+                            "ERROR:EnumAction",
+                            &format!("액션 이름에 NUL 문자가 있어 건너뜀: {name:?}"),
+                        );
+                        None
+                    }
+                })
+                .collect()
+        })
+    }
 }
 
 // 'static vtable 포인터를 보관하며 변경하지 않으므로 안전합니다.
@@ -84,10 +123,18 @@ unsafe impl<T: HwpUserAction> Send for RustActionModule<T> {}
 /// - `this`는 유효한 `RustActionModule<T>`를 가리켜야 합니다.
 /// - 반환된 참조의 수명(`'a`)은 호출자가 책임집니다.
 fn extract_plugin<'a, T: HwpUserAction>(this: *mut c_void) -> Option<&'a T> {
+    extract_module::<T>(this).map(|m| &m.plugin)
+}
+
+/// C++ `this` 포인터를 `RustActionModule<T>` 참조로 재해석합니다.
+///
+/// # Safety
+/// [`extract_plugin`]과 같습니다.
+fn extract_module<'a, T: HwpUserAction>(this: *mut c_void) -> Option<&'a RustActionModule<T>> {
     if this.is_null() {
         return None;
     }
-    Some(unsafe { &(*(this as *const RustActionModule<T>)).plugin })
+    Some(unsafe { &*(this as *const RustActionModule<T>) })
 }
 
 const MAX_ACTION_LEN: usize = 256;
@@ -140,9 +187,11 @@ fn with_hwp_object<T>(p_obj: *mut c_void, f: impl FnOnce(&HwpObject) -> T) -> Op
 /// - `n≥2` → `actions()[n-2].name`   (사용자 정의 액션)
 ///
 /// # 문자열 수명
-/// 반환하는 `*const c_char`는 `ActionMeta::name`(또는 예약 GUID)의
-/// `&'static CStr`을 그대로 가리킨다. 액션마다 주소가 다르고 내용이 바뀌지
-/// 않으므로, HWP가 포인터를 복사하지 않고 보관해도 안전하다.
+/// SDK는 반환 문자열을 언제까지 유지해야 하는지 명시하지 않는다. 그래서 첫 호출 때
+/// 모든 이름을 `RustActionModule::action_names`(`static` 모듈 안의 캐시)에
+/// `CString`으로 만들어 두고, 이후 그 주소를 돌려준다. 액션마다 주소가 다르고
+/// DLL이 로드된 동안 내용이 바뀌지 않으므로 HWP가 포인터를 복사하든 보관하든
+/// 안전하다. 길이 제한도 없다.
 ///
 /// # Safety
 /// - `this`는 `RustActionModule<T>`의 유효한 포인터이거나 `null`이어야 한다.
@@ -153,15 +202,15 @@ pub unsafe extern "thiscall" fn tramp_enum_action<T: HwpUserAction>(
 ) -> *const c_char {
     crate::debug::log("EnumAction", &format!("n={n}, this={this:?}"));
     // this가 null이면 RustActionModule에 접근할 수 없으므로 조기 반환
-    let Some(plugin) = extract_plugin::<T>(this) else {
-        crate::debug::log("ERROR:EnumAction", "extract_plugin 실패");
+    let Some(module) = extract_module::<T>(this) else {
+        crate::debug::log("ERROR:EnumAction", "extract_module 실패");
         return std::ptr::null();
     };
-    // n이 범위를 벗어나면 None → null 반환으로 열거 종료 신호
-    let Some(name) = plugin.enum_action(n) else {
+    // n이 음수거나 범위를 벗어나면 null 반환으로 열거 종료 신호
+    let names = module.action_names();
+    let Some(name) = usize::try_from(n).ok().and_then(|i| names.get(i)) else {
         return std::ptr::null();
     };
-
     name.as_ptr()
 }
 

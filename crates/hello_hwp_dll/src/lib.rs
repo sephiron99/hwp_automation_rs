@@ -1,16 +1,12 @@
 use hwp_addon::debug::msgbox_err;
 use hwp_addon::export_hwp_addon;
-use hwp_addon::hwp_user_action::{
-    ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget, action_str,
-};
+use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::text_extract::HwpTextExt;
 use hwp_core::hwp_obj::HwpObject;
-use std::ffi::CStr;
 
 const TOOLBAR_DATA: &[u8] = include_bytes!("../toolbar.bmp");
 
-const MY_ACTION: &CStr = c"InsertHelloWorld";
-const MY_ACTION_STR: &str = action_str(MY_ACTION);
+const MY_ACTION: &str = "InsertHelloWorld";
 
 static CONFIG: ToolbarConfig = ToolbarConfig {
     name: "addon",
@@ -49,7 +45,7 @@ impl HwpUserAction for HelloWorldPlugin {
 
     fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_core::error::Result<bool> {
         match action_name {
-            MY_ACTION_STR => {
+            MY_ACTION => {
                 let action = hwp.h_action()?;
                 let pset = hwp.h_parameter_set()?;
                 let insert_text = pset.h_insert_text()?;
