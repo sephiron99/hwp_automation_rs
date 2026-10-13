@@ -3,10 +3,16 @@ pub mod ffi;
 pub mod hwp_user_action;
 pub mod ime;
 pub mod keyfwd;
+#[cfg(feature = "file-log")]
+pub mod logging;
 pub mod shortcut;
 pub mod text_edit;
 pub mod text_extract;
 pub mod toolbar;
+
+// `export_hwp_addon!`이 사용자 크레이트에서 tracing 매크로를 쓰기 위한 재수출.
+#[doc(hidden)]
+pub use tracing as __tracing;
 
 /// HWP 사용자 액션 애드온 DLL에 필요한 정적 모듈과 export 진입점을 생성합니다.
 ///
@@ -86,7 +92,7 @@ macro_rules! export_hwp_addon {
         #[unsafe(no_mangle)]
         pub unsafe extern "system" fn QueryUserActionInterface()
         -> *const $crate::ffi::RustActionModule<$plugin_type> {
-            $crate::debug::log("hwp_addon", "QueryUserActionInterface 호출됨");
+            $crate::__tracing::debug!("QueryUserActionInterface 호출됨");
             &MODULE
         }
 

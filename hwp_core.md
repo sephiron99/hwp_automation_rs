@@ -16,7 +16,7 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 
 | 층 | 모듈 | 내용 | 쓸 수 있는 것 |
 |---|---|---|---|
-| 기반 | `error`, `hwp_ver`, `variant`, `com_util`, `disp_obj`, `debug`, `hwp_obj` | `HwpObject` 구조체, 범용 `get`/`call`/`call_with`, `hwp_com_type!` | — |
+| 기반 | `error`, `hwp_ver`, `variant`, `com_util`, `disp_obj`, `hwp_obj` | `HwpObject` 구조체, 범용 `get`/`call`/`call_with`, `hwp_com_type!` | — |
 | 1 | `pset` | ParameterSet 타입 | 기반 |
 | 2 | `method` | `HwpObject.tlb.IDL` interface의 method/property 1:1 binding | 기반, `pset` |
 | 3 | `actions` | ActionTable의 Action ID별 래퍼 (`Act` 핸들) | 기반, `pset`, `method` |
@@ -52,7 +52,6 @@ hwp_core (lib.rs)
 ├── com_util       - 저수준 COM Invoke 래퍼
 ├── disp_obj       - DispObj (일반 IDispatch 래퍼), hwp_com_type! 매크로
 ├── hwp_obj        - HwpObject (최상위 API 진입점)
-├── debug          - 디버그 로그 유틸
 │
 │  ── 1. ParameterSet 타입 ──
 ├── pset           - HParameterSet, HCharShape, HParaShape, HInsertText

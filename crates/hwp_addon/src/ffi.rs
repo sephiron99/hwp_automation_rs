@@ -92,10 +92,7 @@ impl<T: HwpUserAction> RustActionModule<T> {
                 .filter_map(|name| match CString::new(name) {
                     Ok(c) => Some(c),
                     Err(_) => {
-                        crate::debug::log(
-                            "ERROR:EnumAction",
-                            &format!("액션 이름에 NUL 문자가 있어 건너뜀: {name:?}"),
-                        );
+                        tracing::error!(?name, "액션 이름에 NUL 문자가 있어 건너뜀");
                         None
                     }
                 })
@@ -200,10 +197,10 @@ pub unsafe extern "thiscall" fn tramp_enum_action<T: HwpUserAction>(
     this: *mut c_void,
     n: i32,
 ) -> *const c_char {
-    crate::debug::log("EnumAction", &format!("n={n}, this={this:?}"));
+    tracing::trace!(n, ?this, "EnumAction");
     // this가 null이면 RustActionModule에 접근할 수 없으므로 조기 반환
     let Some(module) = extract_module::<T>(this) else {
-        crate::debug::log("ERROR:EnumAction", "extract_module 실패");
+        tracing::error!("EnumAction: extract_module 실패");
         return std::ptr::null();
     };
     // n이 음수거나 범위를 벗어나면 null 반환으로 열거 종료 신호
@@ -250,22 +247,16 @@ pub unsafe extern "thiscall" fn tramp_get_action_image<T: HwpUserAction>(
 ) -> i32 {
     // this가 null이면 RustActionModule에 접근할 수 없으므로 조기 반환
     let Some(plugin) = extract_plugin::<T>(this) else {
-        crate::debug::log("GetActionImage", "extract_plugin 실패");
+        tracing::error!("GetActionImage: extract_plugin 실패");
         return 0;
     };
     let action_name = lpcstr_to_string(szAction);
-    crate::debug::log(
-        "GetActionImage",
-        &format!("action={action_name}, state={uState}"),
-    );
+    tracing::trace!(action = %action_name, state = uState, "GetActionImage");
 
     // get_action_image: actions() 목록에서 액션을 찾고, toolbar_bitmap()으로 HBITMAP을 얻음.
     // 해당 액션이 없거나 비트맵 미설정이면 None → FALSE 반환
     if let Some((hbitmap, index)) = plugin.get_action_image(&action_name, uState) {
-        crate::debug::log(
-            "GetActionImage",
-            &format!("hbitmap={hbitmap}, index={index}"),
-        );
+        tracing::trace!(hbitmap, index, "GetActionImage");
         // 출력 포인터가 null인 경우도 허용 (HWP가 특정 인자만 사용할 수 있음)
         if !phBitmap.is_null() {
             unsafe { *phBitmap = hbitmap };
@@ -275,7 +266,7 @@ pub unsafe extern "thiscall" fn tramp_get_action_image<T: HwpUserAction>(
         }
         1
     } else {
-        crate::debug::log("GetActionImage", "None 반환");
+        tracing::trace!("GetActionImage: None 반환");
         0
     }
 }
@@ -370,7 +361,9 @@ pub unsafe extern "thiscall" fn tramp_do_action<T: HwpUserAction>(
         return 0;
     };
     let action_name = lpcstr_to_string(szAction);
-    crate::debug::log("DoAction", &format!("action={action_name}"));
+    // 이 액션 안에서 나온 로그(hwp_core의 COM 호출 포함)에 action 이름을 붙인다.
+    let _span = tracing::debug_span!("DoAction", action = %action_name).entered();
+    tracing::debug!("DoAction");
 
     // pObj(IDispatch)를 HwpObject로 빌려서 dispatch에 전달.
     // with_hwp_object 내부에서 mem::forget으로 Drop(=Release)을 방지한다.
@@ -380,12 +373,9 @@ pub unsafe extern "thiscall" fn tramp_do_action<T: HwpUserAction>(
     // Some(Ok(true))만 성공으로 간주하고 나머지는 0을 반환한다.
     match &result {
         Some(Ok(true)) => {}
-        Some(Ok(false)) => crate::debug::log("DoAction", "Ok(false) 반환"),
-        Some(Err(e)) => crate::debug::log("ERROR:DoAction", &format!("{e}")),
-        None => crate::debug::log(
-            "ERROR:DoAction",
-            "with_hwp_object None (p_obj null 또는 래핑 실패)",
-        ),
+        Some(Ok(false)) => tracing::debug!("Ok(false) 반환"),
+        Some(Err(e)) => tracing::error!(error = %e, "DoAction 실패"),
+        None => tracing::error!("with_hwp_object None (p_obj null 또는 래핑 실패)"),
     }
 
     match result {

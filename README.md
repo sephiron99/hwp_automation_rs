@@ -147,6 +147,16 @@ export_hwp_addon!(MyPlugin, MyPlugin);
 
 `Cargo.toml`에서 `crate-type = ["cdylib"]`로 설정한 뒤 빌드하면 한글에 로드할 수 있는 DLL이 생성됩니다.
 
+### 로그
+
+모든 크레이트는 [`tracing`](https://docs.rs/tracing) 이벤트를 내보내기만 하고, 구독자(subscriber)는 설치하지 않습니다. 아무것도 하지 않으면 로그는 어디에도 기록되지 않습니다.
+
+- **OLE 클라이언트**: 실행 파일에서 직접 구독자를 설치합니다. 예: `tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).init();`
+- **애드온 DLL**: `hwp_addon`의 `file-log` 기능을 켜고 `on_load`에서 `hwp_addon::logging::init_default(LevelFilter::DEBUG)`를 호출하면 `%LOCALAPPDATA%\HwpAddon\hwp_addon_debug.log`에 기록합니다. 여러 번 호출해도 처음 한 번만 설치됩니다.
+- **릴리스에서 아예 빼기**: 최종 바이너리/DLL 크레이트에서 `tracing`의 `release_max_level_off` 같은 기능을 켭니다. 라이브러리 크레이트에서는 켜지 마세요.
+
+COM 호출 실패는 `debug`, 개별 COM 호출 흐름은 `trace` 레벨입니다.
+
 ---
 
 ## API 사용법
@@ -244,6 +254,10 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 ---
 
 ## Breaking changes
+
+### 0.3.0
+
+**로그가 `tracing`으로 바뀌었습니다.** `hwp_core::debug` 모듈과 `hwp_addon::debug::log`가 없어졌습니다. 로그를 남기려면 `tracing::debug!` 등을 쓰고, 파일로 받으려면 위 [로그](#로그) 절을 참고하세요. 더 이상 라이브러리가 `%LOCALAPPDATA%`에 로그 파일을 저절로 만들지 않습니다. `hwp_addon::debug::{msgbox, msgbox_err}`는 그대로입니다.
 
 ### 0.2.0
 

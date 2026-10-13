@@ -20,7 +20,8 @@ hwp_addon/src/
 ├── ffi.rs              # C++ vtable FFI 정의 + 트램펄린 함수
 ├── hwp_user_action.rs  # HwpUserAction 트레잇, ToolbarConfig 등 공개 API
 ├── toolbar.rs          # ToolbarBitmap — BMP 로드 및 HBITMAP 캐시
-└── debug.rs            # 파일 로그 + MessageBox 유틸
+├── logging.rs          # (file-log 기능) tracing 파일 구독자 설치
+└── debug.rs            # MessageBox 유틸
 ```
 
 ---
@@ -104,8 +105,8 @@ hwp_addon/src/
 │  └────────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │  debug.rs  ─  로그/MessageBox 유틸                         │  │
-│  │    log(tag, msg) / msgbox(title, msg) / msgbox_err(…)      │  │
+│  │  debug.rs  ─  MessageBox 유틸                              │  │
+│  │    msgbox(title, msg) / msgbox_err(title, msg)             │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -294,13 +295,20 @@ export_rundll_entry!(RunGuiW, run_gui);
 
 ---
 
-## 디버그 유틸 (`debug.rs`)
+## 로그와 디버그 유틸
 
-| 함수                     | 동작                                                                  |
-|--------------------------|-----------------------------------------------------------------------|
-| `log(tag, msg)`          | `%LOCALAPPDATA%\hwp_addon_debug.log`에 타임스탬프 포함 기록 |
-| `msgbox(title, msg)`     | 로그 + 정보 MessageBox                                                |
-| `msgbox_err(title, msg)` | 로그 + 에러 MessageBox                                                |
+로그는 `tracing` 매크로로 내보낸다. `hwp_core`/`hwp_addon`은 구독자를 설치하지 않으므로, 애드온 작성자가 켜지 않으면 아무 데도 기록되지 않는다.
+
+| 함수 | 동작 |
+|---|---|
+| `logging::init_default(level)` | (`file-log`) `%LOCALAPPDATA%\HwpAddon\hwp_addon_debug.log`에 기록하는 구독자 설치. 두 번째 호출부터는 no-op |
+| `logging::init_file(path, level)` | (`file-log`) 지정 경로에 기록하는 구독자 설치 |
+| `debug::msgbox(title, msg)` | `info!` 이벤트 + 정보 MessageBox |
+| `debug::msgbox_err(title, msg)` | `error!` 이벤트 + 에러 MessageBox |
+
+- 파일 기록은 호출 스레드에서 동기로 한다. `tracing-appender`의 non_blocking 같은 백그라운드 스레드는 DLL이 언로드될 때 언로드된 코드를 실행할 수 있어 쓰지 않는다.
+- `DoAction`마다 `action` 필드를 가진 span을 연다. 그 안의 `hwp_core` COM 호출 로그에 액션 이름이 붙는다.
+- `on_load`보다 먼저 일어나는 `QueryUserActionInterface`, `EnumAction` 로그는 구독자가 아직 없어서 남지 않는다.
 
 ---
 

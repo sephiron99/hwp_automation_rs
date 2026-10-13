@@ -20,7 +20,7 @@
 //! 3. **IMM32 fallback + 진단 로그** — 여러 HWND 후보에서 IMC를 찾아 시도.
 //!    실제로는 효과가 없지만 환경 변화 시 감지용으로 남김.
 
-use crate::debug::log;
+use tracing::debug;
 use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
 use windows::Win32::UI::Input::Ime::{
@@ -50,7 +50,7 @@ use windows::core::{BOOL, Interface};
 /// 로그로만 남기고 조용히 다음 단계로 진행한다.
 pub fn commit_composition() {
     unsafe {
-        log("ime", "commit_composition: 시작");
+        debug!("commit_composition: 시작");
 
         // 1. TSF 경로 — 가장 정통. 단계별 로그는 함수 내부에서 직접 남김.
         terminate_tsf_composition();
@@ -61,7 +61,7 @@ pub fn commit_composition() {
         // 3. IMM32 경로 — 진단용 (실제로는 효과 없음이 확인됨)
         try_imm32_all_candidates();
 
-        log("ime", "commit_composition: 종료");
+        debug!("commit_composition: 종료");
     }
 }
 
@@ -83,7 +83,7 @@ unsafe fn terminate_tsf_composition() {
             match CoCreateInstance(&CLSID_TF_ThreadMgr, None, CLSCTX_INPROC_SERVER) {
                 Ok(tm) => tm,
                 Err(e) => {
-                    log("ime", &format!("TSF: CoCreateInstance 실패: {e}"));
+                    debug!(error = %e, "TSF: CoCreateInstance 실패");
                     return;
                 }
             };
@@ -93,7 +93,7 @@ unsafe fn terminate_tsf_composition() {
             Err(e) => {
                 // S_OK + NULL도 여기로 들어온다: TSF가 이 스레드에 아직
                 // 초기화되지 않았거나 focus document가 없는 상태.
-                log("ime", &format!("TSF: GetFocus 실패: {e}"));
+                debug!(error = %e, "TSF: GetFocus 실패");
                 return;
             }
         };
@@ -101,7 +101,7 @@ unsafe fn terminate_tsf_composition() {
         let ctx: ITfContext = match doc_mgr.GetTop() {
             Ok(c) => c,
             Err(e) => {
-                log("ime", &format!("TSF: GetTop 실패: {e}"));
+                debug!(error = %e, "TSF: GetTop 실패");
                 return;
             }
         };
@@ -109,14 +109,14 @@ unsafe fn terminate_tsf_composition() {
         let cs: ITfContextOwnerCompositionServices = match ctx.cast() {
             Ok(s) => s,
             Err(e) => {
-                log("ime", &format!("TSF: QI ContextOwnerCompositionServices 실패: {e}"));
+                debug!(error = %e, "TSF: QI ContextOwnerCompositionServices 실패");
                 return;
             }
         };
 
         match cs.TerminateComposition(None) {
-            Ok(()) => log("ime", "TSF: TerminateComposition 성공"),
-            Err(e) => log("ime", &format!("TSF: TerminateComposition 실패: {e}")),
+            Ok(()) => debug!("TSF: TerminateComposition 성공"),
+            Err(e) => debug!(error = %e, "TSF: TerminateComposition 실패"),
         }
     }
 }
@@ -133,18 +133,15 @@ unsafe fn try_setfocus_bounce() {
     unsafe {
         let focus = GetFocus();
         if focus.is_invalid() {
-            log("ime", "setfocus: GetFocus=null, 스킵");
+            debug!("setfocus: GetFocus=null, 스킵");
             return;
         }
         let parent = GetAncestor(focus, GA_PARENT);
         if parent.is_invalid() {
-            log("ime", "setfocus: parent=null, 스킵");
+            debug!("setfocus: parent=null, 스킵");
             return;
         }
-        log(
-            "ime",
-            &format!("setfocus: {focus:?} → {parent:?} → {focus:?}"),
-        );
+        debug!("setfocus: {focus:?} → {parent:?} → {focus:?}");
         let _ = SetFocus(Some(parent));
         let _ = SetFocus(Some(focus));
     }
@@ -180,15 +177,17 @@ unsafe fn try_imm32_commit(hwnd: HWND, tag: &str) -> bool {
         // 조합이 실제로 있는 IMC만 로그로 남긴다 (0인 경우는 노이즈).
         if comp_bytes > 0 {
             let class_name = class_name_of(hwnd);
-            log(
-                "ime",
-                &format!(
-                    "[{tag}] hwnd={hwnd:?} class={class_name} IMC={:?} open={open} comp_bytes={comp_bytes}",
-                    himc.0
-                ),
+            debug!(
+                tag,
+                ?hwnd,
+                class = %class_name,
+                imc = ?himc.0,
+                open,
+                comp_bytes,
+                "IMM 조합 발견"
             );
             let ok = ImmNotifyIME(himc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0).as_bool();
-            log("ime", &format!("[{tag}] ImmNotifyIME(CPS_COMPLETE) -> {ok}"));
+            debug!(tag, ok, "ImmNotifyIME(CPS_COMPLETE)");
             let _ = ImmReleaseContext(hwnd, himc);
             return ok;
         }

@@ -3,7 +3,6 @@
 
 // ── 기반 ──
 pub mod com_util;
-pub mod debug;
 #[macro_use]
 pub mod disp_obj;
 pub mod error;

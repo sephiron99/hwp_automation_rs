@@ -235,15 +235,15 @@ SDK의 `Version` 설명은 바이트별 정수 구조를 제시한다. 프로젝
 
 ## 10. 진단 결과를 읽을 때 알아둘 점
 
-로그 기본 경로는 Windows의 `%LOCALAPPDATA%\HwpAddon\hwp_addon_debug.log`다. `ime`, `DoAction`, `dabbrev`, `ui_popup`, `com_util` 등의 태그로 실패 단계와 호출 흐름을 구분한다.
+로그는 `tracing`으로 내보내고, 애드온이 `hwp_addon::logging::init_default`(`file-log` 기능)를 호출했을 때만 `%LOCALAPPDATA%\HwpAddon\hwp_addon_debug.log`에 기록된다. `hwp_dabbrev`는 `on_load`에서 `DEBUG` 레벨로 켠다. 각 줄의 target(`hwp_core::com_util`, `hwp_addon::ime`, `hwp_dabbrev::ui_popup` 등)과 `DoAction{action=..}` span으로 실패 단계와 호출 흐름을 구분한다.
 
-**구현상 주의.** `hwp_core`와 `hwp_addon`의 로그 모듈은 각각 독립적인 `OnceLock`을 사용하지만 같은 파일을 `truncate(true)`로 연다. 한쪽이 나중에 처음 로그를 남기면 앞쪽 로그가 지워질 수 있다. 이 때문에 초기 진단 기록이 없다는 사실만으로 해당 코드가 실행되지 않았다고 단정하지 않는다. 파일을 열지 못해도 로깅은 조용히 생략된다.
+**구현상 주의.** 구독자는 `on_load`에서 설치되므로 그 전의 `QueryUserActionInterface`·`EnumAction` 로그는 남지 않는다. 초기 진단 기록이 없다는 사실만으로 해당 코드가 실행되지 않았다고 단정하지 않는다. 파일을 열지 못하면 `init_default`가 에러를 돌려주고 로깅은 생략된다. 개별 COM 호출 흐름은 `trace` 레벨이라 `DEBUG`로 켜면 보이지 않는다.
 
 WSL 빌드에서는 Rust 컴파일과 Windows 링커 실행을 구분한다. 현재 `.cargo/config.toml`의 링커는 `../msvc-linker/linker-x86.sh`다. 이 작업 세션에서는 링커가 저장소 밖에 보조 파일을 쓰는 단계의 읽기 전용 오류와 WSL 소켓 오류가 있었고, 실행 권한 범위를 조정한 뒤 같은 빌드가 성공했다. 이는 HWP API 호출 오류와는 다른 진단 범주다.
 
 기준 커밋의 의존성과 팝업 변경은 `cargo build -p hwp_dabbrev --locked`로 32비트 Windows DLL 빌드를 확인했다. 빌드 성공은 IME, 포커스, Undo, 문서별 동작의 실환경 검증을 대신하지 않는다.
 
-근거: [애드온 로그](crates/hwp_addon/src/debug.rs), [코어 로그](crates/hwp_core/src/debug.rs), [링커 설정](.cargo/config.toml).
+근거: [애드온 로그 구독자](crates/hwp_addon/src/logging.rs), [COM 호출 로그](crates/hwp_core/src/com_util.rs), [링커 설정](.cargo/config.toml).
 
 ## 기존 문서·주석을 읽을 때의 정정 사항
 

@@ -15,9 +15,10 @@ path = "src/lib.rs"
 # path = "src/hwp_dabbrev_ole.rs"
 
 [dependencies]
-hwp_addon = { path = "../hwp_addon" }
+hwp_addon = { path = "../hwp_addon", features = ["file-log"] }
 hwp_core = { path = "../hwp_core" }
 hwp_com = { path = "../hwp_com" }
+tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 winsafe = { version = "0.0.29", features = ["gui"] }
 
 [dependencies.windows]
