@@ -125,7 +125,7 @@ pub struct MyPlugin;
 impl HwpUserAction for MyPlugin {
     fn actions(&self) -> &'static [ActionMeta] {
         static ACTIONS: [ActionMeta; 1] = [ActionMeta {
-            name: "MyAction",
+            name: c"MyAction",
             label: "내 액션",
             image_index: 0,
             shortcut: None,

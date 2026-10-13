@@ -191,9 +191,10 @@ HWP가 소유한 `IDispatch` 포인터를 `HwpObject`로 래핑할 때
 `AddRef`/`Release`를 호출하면 안 된다.
 `with_hwp_object`가 `from_raw_dispatch` 후 `std::mem::forget`으로 Drop을 방지한다.
 
-**EnumAction 문자열 버퍼**:
-반환하는 `*const c_char`는 `thread_local!` `Vec<u8>`에 보관한다.
-HWP는 다음 `EnumAction` 호출 전에 문자열을 복사하므로 안전하다.
+**EnumAction 문자열 수명**:
+`ActionMeta::name`이 `&'static CStr`이므로 반환하는 `*const c_char`는 그 정적 문자열을
+그대로 가리킨다. 액션마다 주소가 다르고 내용이 바뀌지 않아, HWP가 포인터를 복사하든
+보관하든 안전하다. 별도 버퍼나 길이 제한은 없다.
 
 ---
 
@@ -309,7 +310,7 @@ impl HwpUserAction for HelloWorldPlugin {
     fn toolbar_config(&self) -> Option<&ToolbarConfig> { Some(&CONFIG) }
 
     fn actions(&self) -> &[ActionMeta] {
-        &[ActionMeta { name: "InsertHelloWorld", label: "Hello", image_index: 0 }]
+        &[ActionMeta { name: c"InsertHelloWorld", label: "Hello", image_index: 0 }]
     }
 
     fn do_action(&self, action_name: &str, hwp: &HwpObject) -> Result<bool> {
