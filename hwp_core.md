@@ -153,7 +153,7 @@ Methods (hwp_obj.rs):
   save_as_hwpx(path: &str) -> Result<()>
   current_char_shape() -> Result<CharShape>
   current_para_shape() -> Result<ParaShape>
-  hwpml_with_caret() -> Result<HwpmlCaret>   (HWPML과 그 안의 커서 바이트 위치. 책갈피 삽입 → GetTextFile → Undo)
+  hwpml_with_caret() -> Result<HwpmlCaret>   (HWPML과 그 안의 커서 바이트 위치. 책갈피 삽입 → GetTextFile → Undo → GetTextFile)
 ```
 
 ---

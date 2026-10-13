@@ -84,19 +84,19 @@ fn report(hwp: &HwpObject) -> hwp_addon::Result<String> {
         .nth(CONTEXT_CHARS)
         .map_or(tail.len(), |(i, _)| i);
 
-    let diff = first_diff(body(&hwpml_before), body(&doc.hwpml));
+    let diff = first_diff(&hwpml_before, &doc.hwpml);
 
     Ok(format!(
         "GetPos 전: {pos_before:?}\n\
          GetPos 후: {pos_after:?} ({})\n\n\
          호출 후 문서가 호출 전과 같음(Undo로 복원): {}\n\
-         반환한 HWPML의 BODY가 호출 전 문서와 같음: {}{diff}\n\n\
+         반환한 HWPML이 호출 전 문서와 같음: {}{diff}\n\n\
          offset: {} / {} 바이트\n\n\
          커서 앞:\n{}\n\n\
          커서 뒤:\n{}",
         verdict(pos_before == pos_after),
         verdict(hwpml_before == hwpml_after),
-        verdict(body(&hwpml_before) == body(&doc.hwpml)),
+        verdict(hwpml_before == doc.hwpml),
         doc.offset,
         doc.hwpml.len(),
         &head[head_start..],
@@ -117,16 +117,10 @@ fn first_diff(before: &str, returned: &str) -> String {
     }
     let excerpt = |s: &str| s[same..].chars().take(CONTEXT_CHARS).collect::<String>();
     format!(
-        "\n  처음 달라지는 곳(BODY의 {same}바이트)\n  호출 전: {}\n  반환값: {}",
+        "\n  처음 달라지는 곳({same}바이트)\n  호출 전: {}\n  반환값: {}",
         excerpt(before),
         excerpt(returned),
     )
-}
-
-/// `<BODY>`부터의 부분. 반환한 HWPML은 책갈피를 넣은 직후의 문서라서 `HEAD`의
-/// `CARETPOS`가 호출 전과 다를 수 있으므로 본문만 비교한다.
-fn body(hwpml: &str) -> &str {
-    hwpml.find("<BODY>").map_or(hwpml, |i| &hwpml[i..])
 }
 
 fn verdict(ok: bool) -> &'static str {
