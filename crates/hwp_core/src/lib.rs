@@ -10,6 +10,8 @@ pub mod hwp_obj;
 pub mod hwp_ver;
 pub mod variant;
 
+pub use hwp_obj::HwpObject;
+
 // ── 1. ParameterSet 타입 ──
 pub mod pset;
 // ── 2. SDK method ──
