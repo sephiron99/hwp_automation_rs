@@ -1,6 +1,6 @@
 [package]
 name = "hwp_addon"
-version = "0.3.0"
+version = "0.2.1"
 authors = [ "sephiron <sephiron@hanmail.net>" ]
 license = "MIT"
 edition = "2024"

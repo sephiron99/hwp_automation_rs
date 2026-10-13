@@ -81,10 +81,7 @@ macro_rules! export_hwp_addon {
             };
 
         static MODULE: $crate::ffi::RustActionModule<$plugin_type> =
-            $crate::ffi::RustActionModule {
-                lpVtbl: &VTABLE,
-                plugin: $plugin_instance,
-            };
+            $crate::ffi::RustActionModule::new(&VTABLE, $plugin_instance);
 
         #[unsafe(no_mangle)]
         pub unsafe extern "system" fn QueryUserActionInterface()

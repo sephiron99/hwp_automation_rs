@@ -55,6 +55,7 @@ hwp_addon/src/
 │  │  RustActionModule<T: HwpUserAction> (repr C)               │  │
 │  │    lpVtbl : *const IHncUserActionModuleVtbl   ← [0..4]     │  │
 │  │    plugin : T                                 ← [4..]      │  │
+│  │    action_names : OnceLock<Box<[CString]>>                 │  │
 │  │                                                            │  │
 │  │  트램펄린 (thiscall → trait 위임)                          │  │
 │  │    tramp_enum_action       → plugin.enum_action()          │  │
@@ -79,7 +80,7 @@ hwp_addon/src/
 │  │    │  fn toolbar_bitmap()  → Option<isize>            │    │  │
 │  │    └──────────────────────────────────────────────────┘    │  │
 │  │    ┌─ 프레임워크 내부 (오버라이드 불필요) ────────────┐    │  │
-│  │    │  fn enum_action()          → Option<&CStr>       │    │  │
+│  │    │  fn enum_action()          → Option<&str>        │    │  │
 │  │    │  fn get_action_image()     → Option<(isize,i32)> │    │  │
 │  │    │  fn dispatch()             → Result<bool>        │    │  │
 │  │    │  fn dispatch_update_ui()   → u32                 │    │  │
@@ -125,8 +126,8 @@ LoadLibrary("addon.dll")
   │       └─→ tramp_enum_action
   │               └─→ extract_plugin(this) → plugin
   │                       └─→ plugin.enum_action(n)
-  │                             0 → UUIDCSTR_ON_INITIAL_LOAD
-  │                             1 → UUIDCSTR_ON_LOAD
+  │                             0 → UUIDSTR_ON_INITIAL_LOAD
+  │                             1 → UUIDSTR_ON_LOAD
   │                             n → actions()[n-2].name
   │
   ├─→ GetActionImage(name, state, phBitmap, pnIndex)
@@ -175,8 +176,9 @@ MSVC 32-bit에서 가상 함수는 `__thiscall` 호출 규약(this → ECX)을 �
 
 ```
 RustActionModule<T>
- ├── [0..4]  lpVtbl  →  IHncUserActionModuleVtbl  (C++ vptr 위치)
- └── [4..]   plugin  :  T  (HwpUserAction 구현체)
+ ├── [0..4]  lpVtbl        →  IHncUserActionModuleVtbl  (C++ vptr 위치)
+ ├── [4..]   plugin        :  T  (HwpUserAction 구현체)
+ └── [..]    action_names  :  OnceLock<Box<[CString]>>  (EnumAction 반환 문자열 캐시)
 ```
 
 HWP가 vtable 포인터 바로 뒤에 `this`로 접근하므로 `#[repr(C)]` 필수.
@@ -192,9 +194,10 @@ HWP가 소유한 `IDispatch` 포인터를 `HwpObject`로 래핑할 때
 `with_hwp_object`가 `from_raw_dispatch` 후 `std::mem::forget`으로 Drop을 방지한다.
 
 **EnumAction 문자열 수명**:
-`ActionMeta::name`이 `&'static CStr`이므로 반환하는 `*const c_char`는 그 정적 문자열을
-그대로 가리킨다. 액션마다 주소가 다르고 내용이 바뀌지 않아, HWP가 포인터를 복사하든
-보관하든 안전하다. 별도 버퍼나 길이 제한은 없다.
+첫 `EnumAction` 호출 때 `enum_action(0..)`의 이름을 모두 `CString`으로 만들어
+`MODULE.action_names`에 캐시하고, 이후 그 주소를 돌려준다. `MODULE`이 `static`이라
+액션마다 주소가 다르고 DLL이 로드된 동안 내용이 바뀌지 않으므로, HWP가 포인터를
+복사하든 보관하든 안전하다. 길이 제한은 없고, NUL이 섞인 이름은 로그를 남기고 건너뛴다.
 
 ---
 
@@ -219,8 +222,8 @@ HWP가 소유한 `IDispatch` 포인터를 `HwpObject`로 래핑할 때
 `enum_action(n)`이 반환하는 순서:
 
 ```
-0 → UUIDCSTR_ON_INITIAL_LOAD  ({B91A2981-...})
-1 → UUIDCSTR_ON_LOAD          ({3E4DC866-...})
+0 → UUIDSTR_ON_INITIAL_LOAD  ({B91A2981-...})
+1 → UUIDSTR_ON_LOAD          ({3E4DC866-...})
 2 → actions()[0].name
 3 → actions()[1].name
 ...
@@ -310,7 +313,7 @@ impl HwpUserAction for HelloWorldPlugin {
     fn toolbar_config(&self) -> Option<&ToolbarConfig> { Some(&CONFIG) }
 
     fn actions(&self) -> &[ActionMeta] {
-        &[ActionMeta { name: c"InsertHelloWorld", label: "Hello", image_index: 0 }]
+        &[ActionMeta { name: "InsertHelloWorld", label: "Hello", image_index: 0 }]
     }
 
     fn do_action(&self, action_name: &str, hwp: &HwpObject) -> Result<bool> {
