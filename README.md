@@ -255,7 +255,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 
 ## Breaking changes
 
-### 다음 버전 (미출시)
+### 0.3.0
 
 **로그가 `tracing`으로 바뀌었습니다.** `hwp_core::debug` 모듈과 `hwp_addon::debug::log`가 없어졌습니다. 로그를 남기려면 `tracing::debug!` 등을 쓰고, 파일로 받으려면 위 [로그](#로그) 절을 참고하세요. 더 이상 라이브러리가 `%LOCALAPPDATA%`에 로그 파일을 저절로 만들지 않습니다. `hwp_addon::debug::{msgbox, msgbox_err}`는 그대로입니다.
 
