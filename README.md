@@ -26,7 +26,7 @@ SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구�
 
 | 항목      | 요구 사항                                            |
 |-----------|------------------------------------------------------|
-| 운영체제  | Windows (32-bit 대상)                                |
+| 운영체제  | Windows                                              |
 | 타겟      | `i686-pc-windows-msvc`(Only)                         |
 | 한글 버전 | V2018 (major 10), V2022 (major 12), V2024 (major 13) |
 | Rust      | edition 2024                                         |
@@ -154,8 +154,8 @@ export_hwp_addon!(MyPlugin, MyPlugin);
 모든 크레이트는 [`tracing`](https://docs.rs/tracing) 이벤트를 내보내기만 하고, 구독자(subscriber)는 설치하지 않습니다. 아무것도 하지 않으면 로그는 어디에도 기록되지 않습니다.
 
 - **OLE 클라이언트**: 실행 파일에서 직접 구독자를 설치합니다. 예: `tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).init();`
-- **애드온 DLL**: `hwp_addon`의 `file-log` 기능을 켜고 `on_load`에서 `hwp_addon::logging::init_default(LevelFilter::DEBUG)`를 호출하면 `%LOCALAPPDATA%\HwpAddon\hwp_addon_debug.log`에 기록합니다. 여러 번 호출해도 처음 한 번만 설치됩니다.
-- **릴리스에서 아예 빼기**: 최종 바이너리/DLL 크레이트에서 `tracing`의 `release_max_level_off` 같은 기능을 켭니다. 라이브러리 크레이트에서는 켜지 마세요.
+- **애드온 DLL**: `hwp_addon`의 `file-log` feature를 켜고 `on_load`에서 `hwp_addon::logging::init_default(LevelFilter::DEBUG)`를 호출하면 `%LOCALAPPDATA%\HwpAddon\hwp_addon_debug.log`에 기록합니다. 여러 번 호출해도 처음 한 번만 설치됩니다.
+- **릴리스에서 아예 빼기**: 최종 바이너리/DLL 크레이트에서 `tracing`의 `release_max_level_off` 같은 [feature](https://docs.rs/tracing/latest/tracing/level_filters/index.html)를 켭니다.
 
 COM 호출 실패는 `debug`, 개별 COM 호출 흐름은 `trace` 레벨입니다.
 
