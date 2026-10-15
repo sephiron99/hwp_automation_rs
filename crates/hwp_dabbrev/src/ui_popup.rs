@@ -30,8 +30,8 @@ const POPUP_HEIGHT: i32 = 120;
 /// popup 종료 원인.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
-    /// Enter / Right / Space — 명시적 확정.
-    Committed,
+    /// Enter / Right / Space — 명시적 확정. 확정한 후보의 index를 담는다.
+    Committed(usize),
     /// ESC / 그 외 키 / 닫힘 — 취소.
     Cancelled,
 }
@@ -220,7 +220,7 @@ fn on_key_down(se: &Session, hwnd: &w::HWND, p: &Wm) {
     // Enter: 확정 + swallow
     if vk == co::VK::RETURN.raw() {
         let _ = drain_char(hwnd); // '\r' 버림
-        close(se, hwnd, Outcome::Committed, None);
+        close(se, hwnd, Outcome::Committed(se.sel.get()), None);
         return;
     }
 
@@ -230,7 +230,7 @@ fn on_key_down(se: &Session, hwnd: &w::HWND, p: &Wm) {
         close(
             se,
             hwnd,
-            Outcome::Committed,
+            Outcome::Committed(se.sel.get()),
             Some(PendingKey {
                 wparam: p.wparam,
                 lparam: p.lparam,

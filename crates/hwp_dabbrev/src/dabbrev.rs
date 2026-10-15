@@ -136,7 +136,7 @@ impl DabbrevPlugin {
 
         // 두 모드 모두 문서 등장 순서를 유지하며 중복 후보를 제거한다.
         let mut seen = HashSet::new();
-        let candidates: Vec<String> = if let Some(prefix) = prefix.as_deref() {
+        let mut candidates: Vec<String> = if let Some(prefix) = prefix.as_deref() {
             words
                 .iter()
                 .filter(|word| is_match(word, prefix))
@@ -174,6 +174,8 @@ impl DabbrevPlugin {
             tracing::debug!("매칭 없음");
             return Ok(true);
         }
+        // 선택 이력이 있는 후보를 앞으로 옮긴다. 나머지는 문서 등장 순서를 유지한다.
+        self.history.borrow().prioritize(&mut candidates);
 
         self.run_popup_session(hwp, prefix, candidates)?;
         Ok(true)
@@ -202,8 +204,14 @@ impl DabbrevPlugin {
         };
 
         let forward_target = HWND::GetForegroundWindow();
-        match ui_popup::show(candidates, replace_cb, forward_target) {
-            ui_popup::Outcome::Committed => tracing::debug!("popup committed"),
+        // show()가 후보 목록을 소유하므로 확정한 단어를 찾을 사본을 남긴다.
+        match ui_popup::show(candidates.clone(), replace_cb, forward_target) {
+            ui_popup::Outcome::Committed(index) => {
+                tracing::debug!(chosen = ?candidates.get(index), "popup committed");
+                if let Some(word) = candidates.get(index) {
+                    self.history.borrow_mut().record(word);
+                }
+            }
             ui_popup::Outcome::Cancelled => {
                 tracing::debug!("popup cancelled");
                 // prefix 모드 → 원래 prefix, next-word → 공백 뒤 원상태.
