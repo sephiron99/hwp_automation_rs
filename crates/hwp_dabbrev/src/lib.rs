@@ -1,6 +1,9 @@
 #![forbid(unsafe_code)]
 
 // 액션마다 문서 전체에서 단어를 새로 추출하고, 완성 후보를 한 번에 표시한다.
+// 팝업에서 확정한 단어는 선택 이력에 기록하고, 다음 액션부터 후보 앞쪽에 둔다.
+use std::cell::RefCell;
+
 use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::shortcut::{Modifiers, ShortcutKey};
 use hwp_addon::text_extract::{HwpTextExt, TextSegment};
@@ -8,6 +11,7 @@ use hwp_addon::{HwpObject, export_hwp_addon};
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_2;
 
 mod dabbrev;
+mod history;
 mod ui_popup;
 
 const TOOLBAR_DATA: &[u8] = include_bytes!("../toolbar.bmp");
@@ -55,7 +59,10 @@ pub(crate) fn strip_leading_nonword(w: &str) -> &str {
 
 // ── Plugin ──
 
-pub struct DabbrevPlugin;
+pub struct DabbrevPlugin {
+    /// 팝업에서 확정한 단어의 이력. 애드온이 로드되어 있는 동안 유지한다.
+    history: RefCell<history::SelectionHistory>,
+}
 
 impl HwpUserAction for DabbrevPlugin {
     fn toolbar_config(&self) -> Option<&ToolbarConfig> {
@@ -105,4 +112,9 @@ impl HwpUserAction for DabbrevPlugin {
     }
 }
 
-export_hwp_addon!(DabbrevPlugin, DabbrevPlugin);
+export_hwp_addon!(
+    DabbrevPlugin,
+    DabbrevPlugin {
+        history: RefCell::new(history::SelectionHistory::new()),
+    }
+);
