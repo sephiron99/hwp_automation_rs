@@ -10,7 +10,7 @@ struct Entry {
     /// 확정한 횟수.
     count: u32,
     /// 마지막으로 확정한 순번. 클수록 최근이다.
-    last: u64,
+    last: u32,
 }
 
 /// 확정한 단어별 횟수와 최근 순번을 기억하고, 후보 목록을 그 순서로 정렬한다.
@@ -22,7 +22,7 @@ struct Entry {
 #[derive(Debug)]
 pub(crate) struct SelectionHistory {
     entries: BTreeMap<String, Entry>,
-    seq: u64,
+    seq: u32,
 }
 
 impl SelectionHistory {
