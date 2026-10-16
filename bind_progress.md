@@ -18,7 +18,7 @@
 
 | Interface | Rust 타입 | method 수 | binding 있음 | binding 없음 |
 |---|---|---:|---:|---:|
-| `IHwpObject` | `HwpObject` | 174 | 11 | 163 |
+| `IHwpObject` | `HwpObject` | 174 | 16 | 158 |
 | `IDHwpAction` | (없음) | 5 | 0 | 5 |
 | `IDHwpParameterSet` | (없음) | 11 | 0 | 11 |
 | `IDHwpParameterArray` | (없음) | 4 | 0 | 4 |
@@ -45,21 +45,18 @@
 | `IXHwpParagraphShape` | (없음) | 19 | 0 | 19 |
 | `IXHwpMessageBox` | (없음) | 1 | 0 | 1 |
 | `IXHwpSendMail` | (없음) | 1 | 0 | 1 |
-| **합계** | | **366** | **31** | **335** |
+| **합계** | | **366** | **36** | **330** |
 
 이와 별도로 이벤트 interface `IHwpObjectEvents`의 콜백 16개는 전부 미구현이다(맨 아래 참고).
 
-## `IHwpObject` — 미구현 163 / 174
+## `IHwpObject` — 미구현 158 / 174
 
-binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `GetText`, `GetPos`, `KeyIndicator`, `GetTextFile`, `SetTextFile`, `Run`
+binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `GetText`, `GetPos`, `KeyIndicator`, `GetTextFile`, `SetTextFile`, `Run`, `Open`, `Clear`, `Quit`, `SetMessageBoxMode`, `RegisterModule`
 
-### 파일 · 문서 (16)
+### 파일 · 문서 (13)
 
-- [ ] `Open(filename: BSTR, Format: VARIANT, arg: VARIANT) -> VARIANT_BOOL`
 - [ ] `Save(save_if_dirty: VARIANT) -> VARIANT_BOOL`
 - [ ] `Insert(Path: BSTR, Format: VARIANT, arg: VARIANT)`
-- [ ] `Clear(option: VARIANT)`
-- [ ] `Quit()`
 - [ ] `CreatePageImage(Path: BSTR, pgno: VARIANT, resolution: VARIANT, depth: VARIANT, Format: VARIANT) -> VARIANT_BOOL`
 - [ ] `GetPageText(pgno: long, option: VARIANT) -> BSTR`
 - [ ] `GetFileInfo(filename: BSTR) -> IDispatch`
@@ -107,7 +104,7 @@ binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `G
 - [ ] `GetSelectedPosBySet(sset: IDispatch*, eset: IDispatch*) -> VARIANT_BOOL`
 - [ ] `GetMousePos(XRelTo: long, YRelTo: long) -> IDispatch`
 
-### Action · ParameterSet (10)
+### Action · ParameterSet (9)
 
 - [ ] `CreateAction(actidstr: BSTR) -> IDispatch`
 - [ ] `CreateSet(setidstr: BSTR) -> IDispatch`
@@ -117,7 +114,6 @@ binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `G
 - [ ] `IsCommandLock(actionID: BSTR) -> VARIANT_BOOL`
 - [ ] `IsActionEnable(actionID: BSTR) -> VARIANT_BOOL`
 - [ ] `ReplaceAction(OldActionID: BSTR, NewActionID: BSTR) -> VARIANT_BOOL`
-- [ ] `RegisterModule(ModuleType: BSTR, ModuleData: VARIANT) -> VARIANT_BOOL`
 - [ ] `CheckXObject(bstring: BSTR) -> IDispatch` ※
 
 ### 컨트롤 · 그림 (6)
@@ -137,12 +133,11 @@ binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `G
 - [ ] `ReplaceFont(langid: long, desFontName: BSTR, desFontType: long, newFontName: BSTR, newFontType: long) -> VARIANT_BOOL`
 - [ ] `ScanFont() -> VARIANT_BOOL`
 
-### 스크립트 매크로 · 메시지 박스 · 사용자 정보 (6)
+### 스크립트 매크로 · 메시지 박스 · 사용자 정보 (5)
 
 - [ ] `GetScriptSource(filename: BSTR) -> BSTR`
 - [ ] `RunScriptMacro(FunctionName: BSTR, uMacroType: long, uScriptType: long) -> VARIANT_BOOL`
 - [ ] `GetMessageBoxMode() -> long`
-- [ ] `SetMessageBoxMode(Mode: long) -> long`
 - [ ] `SetUserInfo(userInfoId: long, Value: BSTR)`
 - [ ] `GetUserInfo(userInfoId: long) -> BSTR`
 

@@ -211,6 +211,85 @@ pub struct KeyIndicatorInfo {
 }
 
 // =========================================================================
+// Clear 관련 타입
+// =========================================================================
+
+/// `Clear`의 `option` 파라미터 — 편집 중인 문서 내용의 처리 방법
+///
+/// SDK: `HwpSaveOption` (short type)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(i32)]
+pub enum SaveOption {
+    /// 문서 내용이 변경되었을 때 사용자에게 저장할지 묻는 대화상자를 띄운다 (SDK: `hwpAskSave` = 0)
+    AskSave = 0,
+    /// 문서 내용을 버린다 (SDK: `hwpDiscard` = 1)
+    Discard = 1,
+    /// 문서가 변경된 경우 저장한다 (SDK: `hwpSaveIfDirty` = 2)
+    SaveIfDirty = 2,
+    /// 무조건 저장한다 (SDK: `hwpSave` = 3)
+    Save = 3,
+}
+
+// =========================================================================
+// SetMessageBoxMode 관련 상수
+// =========================================================================
+
+/// `SetMessageBoxMode`/`GetMessageBoxMode`의 `mode` 값 (SDK: `MB_*`)
+///
+/// 메시지 상자 종류마다 4비트 자리가 하나씩 있고, 그 자리에 자동으로 누를 버튼을 지정한다.
+/// 여러 종류를 `|`로 조합할 수 있다. 예: `msgbox::OK_IDOK | msgbox::YESNO_IDYES`
+///
+/// SDK 참고: HwpAutomation_2504.pdf § GetMessageBoxMode
+pub mod msgbox {
+    /// 메시지 상자 종류 전체 마스크 (SDK: `MB_MASK`)
+    pub const MASK: i32 = 0x00FF_FFFF;
+
+    /// 확인(MB_OK) — 확인 (SDK: `MB_OK_IDOK`)
+    pub const OK_IDOK: i32 = 0x0000_0001;
+    /// 확인(MB_OK) 자리 마스크 (SDK: `MB_OK_MASK`)
+    pub const OK_MASK: i32 = 0x0000_000F;
+
+    /// 확인/취소(MB_OKCANCEL) — 확인 (SDK: `MB_OKCANCEL_IDOK`)
+    pub const OKCANCEL_IDOK: i32 = 0x0000_0010;
+    /// 확인/취소(MB_OKCANCEL) — 취소 (SDK: `MB_OKCANCEL_IDCANCEL`)
+    pub const OKCANCEL_IDCANCEL: i32 = 0x0000_0020;
+    /// 확인/취소(MB_OKCANCEL) 자리 마스크 (SDK: `MB_OKCANCEL_MASK`)
+    pub const OKCANCEL_MASK: i32 = 0x0000_00F0;
+
+    /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) — 종료 (SDK: `MB_ABORTRETRYIGNORE_IDABORT`)
+    pub const ABORTRETRYIGNORE_IDABORT: i32 = 0x0000_0100;
+    /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) — 재시도 (SDK: `MB_ABORTRETRYIGNORE_IDRETRY`)
+    pub const ABORTRETRYIGNORE_IDRETRY: i32 = 0x0000_0200;
+    /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) — 무시 (SDK: `MB_ABORTRETRYIGNORE_IDIGNORE`)
+    pub const ABORTRETRYIGNORE_IDIGNORE: i32 = 0x0000_0400;
+    /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) 자리 마스크 (SDK: `MB_ABORTRETRYIGNORE_MASK`)
+    pub const ABORTRETRYIGNORE_MASK: i32 = 0x0000_0F00;
+
+    /// 예/아니오/취소(MB_YESNOCANCEL) — 예 (SDK: `MB_YESNOCANCEL_IDYES`)
+    pub const YESNOCANCEL_IDYES: i32 = 0x0000_1000;
+    /// 예/아니오/취소(MB_YESNOCANCEL) — 아니오 (SDK: `MB_YESNOCANCEL_IDNO`)
+    pub const YESNOCANCEL_IDNO: i32 = 0x0000_2000;
+    /// 예/아니오/취소(MB_YESNOCANCEL) — 취소 (SDK: `MB_YESNOCANCEL_IDCANCEL`)
+    pub const YESNOCANCEL_IDCANCEL: i32 = 0x0000_4000;
+    /// 예/아니오/취소(MB_YESNOCANCEL) 자리 마스크 (SDK: `MB_YESNOCANCEL_MASK`)
+    pub const YESNOCANCEL_MASK: i32 = 0x0000_F000;
+
+    /// 예/아니오(MB_YESNO) — 예 (SDK: `MB_YESNO_IDYES`)
+    pub const YESNO_IDYES: i32 = 0x0001_0000;
+    /// 예/아니오(MB_YESNO) — 아니오 (SDK: `MB_YESNO_IDNO`)
+    pub const YESNO_IDNO: i32 = 0x0002_0000;
+    /// 예/아니오(MB_YESNO) 자리 마스크 (SDK: `MB_YESNO_MASK`)
+    pub const YESNO_MASK: i32 = 0x000F_0000;
+
+    /// 재시도/취소(MB_RETRYCANCEL) — 재시도 (SDK: `MB_RETRYCANCEL_IDRETRY`)
+    pub const RETRYCANCEL_IDRETRY: i32 = 0x0010_0000;
+    /// 재시도/취소(MB_RETRYCANCEL) — 취소 (SDK: `MB_RETRYCANCEL_IDCANCEL`)
+    pub const RETRYCANCEL_IDCANCEL: i32 = 0x0020_0000;
+    /// 재시도/취소(MB_RETRYCANCEL) 자리 마스크 (SDK: `MB_RETRYCANCEL_MASK`)
+    pub const RETRYCANCEL_MASK: i32 = 0x00F0_0000;
+}
+
+// =========================================================================
 // IHwpObject 메서드 구현
 // =========================================================================
 
@@ -327,6 +406,81 @@ impl HwpObject {
             ],
         )?;
         ensure(ok, || format!("SaveAs({path:?}, {format:?})"))
+    }
+
+    /// `Open` — 문서 파일을 엽니다.
+    ///
+    /// SDK: `VARIANT_BOOL Open(BSTR filename, VARIANT Format, VARIANT arg)`
+    /// - `path` — 문서 파일의 경로(URL 사용 가능)
+    /// - `format` — 문서 형식. 예: `"HWP"`, `"HWPML2X"`, `"HTML"`, `"TEXT"`, `"UNICODE"`.
+    ///   빈 문자열이면 한글이 형식을 자동으로 인식합니다. 쓸 수 있는 형식은 설치된
+    ///   문서 필터(`*.dft`)에 따라 다릅니다.
+    /// - `arg` — 세부 옵션. `key:value;key:value;...` 형식이고 의미는 `format`에 따라
+    ///   다릅니다. 예: `"forceopen:true;suspendpassword:true"`. 없으면 빈 문자열.
+    ///
+    /// SDK가 `false`를 돌려주면(열기 실패) `ExecutionFailed` 에러를 반환합니다.
+    pub fn open(&self, path: &str, format: &str, arg: &str) -> crate::error::Result<()> {
+        let ok: bool = self.call_with(
+            "Open",
+            vec![
+                path.into_variant()?,
+                format.into_variant()?,
+                arg.into_variant()?,
+            ],
+        )?;
+        ensure(ok, || format!("Open({path:?}, {format:?}, {arg:?})"))
+    }
+
+    /// `Clear` — 현재 편집 중인 문서의 내용을 닫고 빈 문서 편집 상태로 돌아갑니다.
+    ///
+    /// SDK: `void Clear([HwpSaveOption option])`
+    /// - `option` — 편집 중인 문서 내용의 처리 방법. [`SaveOption`] 참조.
+    ///
+    /// [`SaveOption::SaveIfDirty`]나 [`SaveOption::Save`]를 주었는데 현재 문서 경로가 없으면
+    /// 한글이 "새 이름으로 저장" 대화상자를 띄웁니다.
+    pub fn clear(&self, option: SaveOption) -> crate::error::Result<()> {
+        self.call_with("Clear", vec![(option as i32).into_variant()?])
+    }
+
+    /// `Quit` — 한글을 종료합니다.
+    ///
+    /// 호출한 뒤에는 이 `HwpObject`와 그 복제본을 더 쓸 수 없습니다.
+    ///
+    /// SDK: `void Quit()` (IDL에만 있고 `HwpAutomation_2504.pdf`에는 설명이 없음)
+    pub fn quit(&self) -> crate::error::Result<()> {
+        self.call("Quit")
+    }
+
+    /// `SetMessageBoxMode` — 한글의 메시지 상자를 띄우지 않고, 지정한 버튼을 자동으로
+    /// 누른 효과를 줍니다.
+    ///
+    /// SDK: `long SetMessageBoxMode(long mode)`
+    /// - `mode` — [`msgbox`]의 상수를 `|`로 조합한 값
+    ///
+    /// 반환값은 이 호출 전에 적용되어 있던 mode입니다. 되돌릴 때 다시 넘기면 됩니다.
+    pub fn set_message_box_mode(&self, mode: i32) -> crate::error::Result<i32> {
+        self.call_with("SetMessageBoxMode", vec![mode.into_variant()?])
+    }
+
+    /// `RegisterModule` — 보안 모듈을 등록합니다.
+    ///
+    /// SDK: `VARIANT_BOOL RegisterModule(BSTR ModuleType, VARIANT ModuleData)`
+    ///
+    /// SDK 문서의 설명은 "보안 모듈 관련 문서 참조"뿐이고, 그 문서는 SDK 배포본에 없습니다.
+    /// 알려진 사용 예는 파일 접근 보안 모듈 등록입니다:
+    /// `register_module("FilePathCheckDLL", <모듈 이름>)`
+    ///
+    /// SDK가 `false`를 돌려주면(등록 실패) `ExecutionFailed` 에러를 반환합니다.
+    pub fn register_module(
+        &self,
+        module_type: &str,
+        module_data: &str,
+    ) -> crate::error::Result<()> {
+        let ok: bool = self.call_with(
+            "RegisterModule",
+            vec![module_type.into_variant()?, module_data.into_variant()?],
+        )?;
+        ensure(ok, || format!("RegisterModule({module_type:?}, {module_data:?})"))
     }
 
     /// `InitScan` — 문서 텍스트 검색을 초기화합니다.
