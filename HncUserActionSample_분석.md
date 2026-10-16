@@ -45,6 +45,7 @@ HWP가 DLL 로드 시 호출하는 **핵심 진입점**. `static CUserActionModu
 ### `IsAccessiblePath(HWND, LONG, LPCTSTR, LPCTSTR) -> BOOL`
 
 HWP가 파일 접근 전에 호출하는 보안 콜백. 샘플에서는 항상 `TRUE` 리턴.
+`UserActionModule.h`는 인자 3개로 선언하지만 정의는 4개다. 보안 모듈 예제(`hwp_sdk_doc/보안모듈(Automation)/`)의 빌드된 DLL도 `ret 10h`로 4개를 정리한다.
 
 ## 3. IHncUserActionModule — 핵심 인터페이스
 

@@ -56,6 +56,9 @@ pub use tracing as __tracing;
 ///   [`HwpUserAction::dispatch`]에 접근합니다.
 /// - `IsAccessiblePath`: HWP가 파일 경로 접근 가능 여부를 조회할 때 호출하는
 ///   export 함수입니다. 현재 기본 구현은 모든 경로에 대해 `TRUE`를 반환합니다.
+///   시그니처는 SDK 예제의 `BOOL __stdcall IsAccessiblePath(HWND, LONG, LPCTSTR, LPCTSTR)`를
+///   따릅니다(예제 헤더는 인자 3개로 선언하지만, 동봉된 보안 모듈 예제 DLL은 `ret 10h`로 4개를
+///   정리합니다). 문자열이 ANSI인지 UTF-16인지는 확인되지 않아 포인터는 `c_void`로 받습니다.
 ///
 /// # 수명과 스레드 모델
 ///
@@ -116,7 +119,8 @@ macro_rules! export_hwp_addon {
         pub unsafe extern "system" fn IsAccessiblePath(
             _hwnd: isize,
             _id: i32,
-            _path: *const u16,
+            _path: *const ::core::ffi::c_void,
+            _site_info: *const ::core::ffi::c_void,
         ) -> i32 {
             1 // TRUE — 항상 허용
         }

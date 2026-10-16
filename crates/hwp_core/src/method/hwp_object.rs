@@ -474,9 +474,18 @@ impl HwpObject {
     ///
     /// SDK: `VARIANT_BOOL RegisterModule(BSTR ModuleType, VARIANT ModuleData)`
     ///
-    /// SDK 문서의 설명은 "보안 모듈 관련 문서 참조"뿐이고, 그 문서는 SDK 배포본에 없습니다.
-    /// 알려진 사용 예는 파일 접근 보안 모듈 등록입니다:
-    /// `register_module("FilePathCheckDLL", <모듈 이름>)`
+    /// 파일 경로 검사 모듈을 등록하면, 한글이 파일에 접근할 때 띄우는 접근 허용 대화상자 대신
+    /// 그 모듈 DLL에 허용 여부를 묻습니다: `register_module("FilePathCheckDLL", <모듈 이름>)`
+    ///
+    /// - 사전 조건: 레지스트리 `HKEY_CURRENT_USER\Software\HNC\HwpAutomation\Modules`에
+    ///   `<모듈 이름>`을 이름으로 하는 문자열(REG_SZ) 값으로 DLL의 전체 경로를 써 둡니다.
+    /// - DLL은 `BOOL __stdcall IsAccessiblePath(HWND hWnd, LONG nID, LPCTSTR szFilePath,
+    ///   LPCTSTR szSiteInfo)`를 export하고, 접근을 허용하면 `TRUE`를 돌려줍니다.
+    ///   문자열이 ANSI인지 UTF-16인지는 확인되지 않았습니다.
+    ///
+    /// 근거: [devcenter-archive](https://github.com/hancom-io/devcenter-archive)의
+    /// `hwp-automation/보안모듈(Automation).zip` (예제 DLL 소스와 레지스트리 화면).
+    /// `HwpAutomation_2504.pdf`의 설명은 "보안 모듈 관련 문서 참조"뿐입니다.
     ///
     /// SDK가 `false`를 돌려주면(등록 실패) `ExecutionFailed` 에러를 반환합니다.
     pub fn register_module(

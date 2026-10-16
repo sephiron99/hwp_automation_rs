@@ -185,7 +185,7 @@ HWP 스레드의 WH_KEYBOARD
 
 **문자열 수명.** SDK는 `EnumAction`이 돌려준 문자열을 언제까지 유지해야 하는지 명시하지 않는다. 그래서 첫 `EnumAction` 호출 때 모든 액션 이름을 `CString`으로 만들어 `static` 모듈 안의 캐시(`RustActionModule::action_names`)에 두고, 이후 그 주소를 돌려준다. 액션마다 주소가 다르고 DLL이 로드된 동안 내용이 바뀌지 않으므로 HWP가 포인터를 복사하든 보관하든 같은 이름을 읽는다. 길이 제한은 없다. 사용자 코드의 `ActionMeta::name`은 그대로 `&'static str`이다.
 
-샘플 안에도 별도 확인이 필요한 불일치가 있다. `IsAccessiblePath`는 헤더에서 인자 3개, `.cpp` 정의에서 인자 4개이며, 현재 Rust 매크로는 3개를 export한다. 이 문서에서는 어느 시그니처가 모든 HWP 환경에서 맞는지 결론 내리지 않는다.
+샘플 안에도 불일치가 있다. `IsAccessiblePath`는 헤더에서 인자 3개, `.cpp` 정의에서 인자 4개(`HWND, LONG, LPCTSTR szFilePath, LPCTSTR szSiteInfo`)다. 보안 모듈 예제(archive의 `hwp-automation/보안모듈(Automation).zip`)도 같은 불일치를 갖지만, 함께 든 빌드된 DLL은 함수 끝이 `ret 10h`라 실제로 4개를 정리한다. `__stdcall`은 호출된 쪽이 스택을 정리하므로 3개로 선언하면 4바이트가 어긋난다. 그래서 Rust 매크로도 4개를 export한다. 문자열이 ANSI인지 UTF-16인지는 확인되지 않았다(보안 모듈 예제는 `_MBCS`, 애드온 예제는 Unicode 빌드). 기본 구현은 인자를 읽지 않으므로 포인터는 `c_void`로 받는다.
 
 근거: [ffi.rs](crates/hwp_addon/src/ffi.rs), [export 매크로](crates/hwp_addon/src/lib.rs), [C++ 헤더](HncUserActionSample/HwpUserAction/UserActionModule.h), [C++ 구현](HncUserActionSample/HwpUserAction/UserActionModule.cpp). SDK 비교: `Addon-Action.pdf` 인쇄 쪽수 4–5쪽.
 
