@@ -18,7 +18,7 @@
 
 | Interface | Rust 타입 | method 수 | binding 있음 | binding 없음 |
 |---|---|---:|---:|---:|
-| `IHwpObject` | `HwpObject` | 174 | 16 | 158 |
+| `IHwpObject` | `HwpObject` | 174 | 17 | 157 |
 | `IDHwpAction` | (없음) | 5 | 0 | 5 |
 | `IDHwpParameterSet` | (없음) | 11 | 0 | 11 |
 | `IDHwpParameterArray` | (없음) | 4 | 0 | 4 |
@@ -45,13 +45,13 @@
 | `IXHwpParagraphShape` | (없음) | 19 | 0 | 19 |
 | `IXHwpMessageBox` | (없음) | 1 | 0 | 1 |
 | `IXHwpSendMail` | (없음) | 1 | 0 | 1 |
-| **합계** | | **366** | **36** | **330** |
+| **합계** | | **366** | **37** | **329** |
 
 이와 별도로 이벤트 interface `IHwpObjectEvents`의 콜백 16개는 전부 미구현이다(맨 아래 참고).
 
-## `IHwpObject` — 미구현 158 / 174
+## `IHwpObject` — 미구현 157 / 174
 
-binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `GetText`, `GetPos`, `KeyIndicator`, `GetTextFile`, `SetTextFile`, `Run`, `Open`, `Clear`, `Quit`, `SetMessageBoxMode`, `RegisterModule`
+binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `GetText`, `GetPos`, `KeyIndicator`, `GetTextFile`, `SetTextFile`, `Run`, `Open`, `Clear`, `Quit`, `GetMessageBoxMode`, `SetMessageBoxMode`, `RegisterModule`
 
 ### 파일 · 문서 (13)
 
@@ -133,11 +133,10 @@ binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `G
 - [ ] `ReplaceFont(langid: long, desFontName: BSTR, desFontType: long, newFontName: BSTR, newFontType: long) -> VARIANT_BOOL`
 - [ ] `ScanFont() -> VARIANT_BOOL`
 
-### 스크립트 매크로 · 메시지 박스 · 사용자 정보 (5)
+### 스크립트 매크로 · 메시지 박스 · 사용자 정보 (4)
 
 - [ ] `GetScriptSource(filename: BSTR) -> BSTR`
 - [ ] `RunScriptMacro(FunctionName: BSTR, uMacroType: long, uScriptType: long) -> VARIANT_BOOL`
-- [ ] `GetMessageBoxMode() -> long`
 - [ ] `SetUserInfo(userInfoId: long, Value: BSTR)`
 - [ ] `GetUserInfo(userInfoId: long) -> BSTR`
 

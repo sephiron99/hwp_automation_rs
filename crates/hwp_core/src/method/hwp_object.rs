@@ -451,6 +451,14 @@ impl HwpObject {
         self.call("Quit")
     }
 
+    /// `GetMessageBoxMode` — 현재 메시지 상자 mode를 얻습니다.
+    ///
+    /// SDK: `long GetMessageBoxMode()`
+    /// - 반환값 — [`msgbox`]의 상수를 조합한 값
+    pub fn get_message_box_mode(&self) -> crate::error::Result<i32> {
+        self.call("GetMessageBoxMode")
+    }
+
     /// `SetMessageBoxMode` — 한글의 메시지 상자를 띄우지 않고, 지정한 버튼을 자동으로
     /// 누른 효과를 줍니다.
     ///
