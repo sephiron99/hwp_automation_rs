@@ -76,8 +76,9 @@ cargo check           # 타입 검사만
 ### WSL 크로스 컴파일 설정
 
 WSL에서 `i686-pc-windows-msvc` 타겟으로 빌드하려면
-[strickczq/msvc-wsl-rust](https://github.com/strickczq/msvc-wsl-rust) 같은
-wsl2-msvc 링크 스크립트가 유용합니다. `.cargo/config.toml`의 `linker` 경로를 환경에 맞게 수정하세요.
+[sephiron99/msvc-wsl-rust](https://github.com/sephiron99/msvc-wsl-rust) 같은
+wsl2-msvc 링크 스크립트가 유용합니다. 저장소 설정은 링커를 지정하지 않고 `PATH`의 `link.exe`를 쓰므로,
+스크립트를 `link.exe`라는 이름으로 `PATH`에 두세요(예: `~/.local/bin/link.exe` 심볼릭 링크).
 
 ---
 

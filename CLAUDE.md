@@ -16,8 +16,8 @@ cargo check             # type-check only
 
 ## WSL 크로스 컴파일 링커 설정
 
-`.cargo/config.toml`에서 `i686-pc-windows-msvc` 타겟 링커를 `../../msvc-linker/linker-x86.sh`로 지정한다.  
-이 스크립트는 [strickczq/msvc-wsl-rust](https://github.com/strickczq/msvc-wsl-rust) 기반이며, 내부 경로나 MSVC 버전은 환경에 맞게 수정해야 한다.
+저장소의 `.cargo/config.toml`은 링커를 지정하지 않으므로, rustc 기본값대로 `PATH`의 `link.exe`로 링크한다.  
+WSL에서는 [sephiron99/msvc-wsl-rust](https://github.com/sephiron99/msvc-wsl-rust) 기반 링커 스크립트를 `link.exe`라는 이름으로 `PATH`에 둔다(예: `~/.local/bin/link.exe` 심볼릭 링크). 스크립트 내부 경로나 MSVC 버전은 환경에 맞게 수정해야 한다. `cargo check`는 링커 없이 동작한다.
 
 ## Architecture
 
