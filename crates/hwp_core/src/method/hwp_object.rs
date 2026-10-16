@@ -231,62 +231,112 @@ pub enum SaveOption {
 }
 
 // =========================================================================
-// SetMessageBoxMode 관련 상수
+// SetMessageBoxMode 관련 타입
 // =========================================================================
 
 /// `SetMessageBoxMode`/`GetMessageBoxMode`의 `mode` 값 (SDK: `MB_*`)
 ///
-/// 메시지 상자 종류마다 4비트 자리가 하나씩 있고, 그 자리에 자동으로 누를 버튼을 지정한다.
-/// 여러 종류를 `|`로 조합할 수 있다. 예: `msgbox::OK_IDOK | msgbox::YESNO_IDYES`
+/// 메시지 상자 종류마다 4비트 칸이 하나씩 있고, 그 칸에 자동으로 누를 버튼을 지정한다.
+/// 여러 종류를 `|`로 조합할 수 있다.
+///
+/// ```ignore
+/// let mode = MessageBoxMode::OK_IDOK | MessageBoxMode::YESNO_IDYES;
+/// let old = hwp.set_message_box_mode(mode)?;
+/// // 특정 종류의 칸 읽기
+/// let yes = mode & MessageBoxMode::YESNO_MASK == MessageBoxMode::YESNO_IDYES;
+/// hwp.set_message_box_mode(old)?;
+/// ```
+///
+/// 칸이 0일 때의 동작과 [`MASK`](Self::MASK) 바깥 비트의 의미는 SDK에 적혀 있지 않다.
+/// 한글이 돌려준 값은 모르는 비트까지 그대로 보존한다([`from_bits_retain`](Self::from_bits_retain)).
 ///
 /// SDK 참고: HwpAutomation_2504.pdf § GetMessageBoxMode
-pub mod msgbox {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct MessageBoxMode(i32);
+
+impl MessageBoxMode {
+    /// 아무 종류도 지정하지 않음
+    pub const NONE: Self = Self(0);
     /// 메시지 상자 종류 전체 마스크 (SDK: `MB_MASK`)
-    pub const MASK: i32 = 0x00FF_FFFF;
+    pub const MASK: Self = Self(0x00FF_FFFF);
 
     /// 확인(MB_OK) — 확인 (SDK: `MB_OK_IDOK`)
-    pub const OK_IDOK: i32 = 0x0000_0001;
+    pub const OK_IDOK: Self = Self(0x0000_0001);
     /// 확인(MB_OK) 자리 마스크 (SDK: `MB_OK_MASK`)
-    pub const OK_MASK: i32 = 0x0000_000F;
+    pub const OK_MASK: Self = Self(0x0000_000F);
 
     /// 확인/취소(MB_OKCANCEL) — 확인 (SDK: `MB_OKCANCEL_IDOK`)
-    pub const OKCANCEL_IDOK: i32 = 0x0000_0010;
+    pub const OKCANCEL_IDOK: Self = Self(0x0000_0010);
     /// 확인/취소(MB_OKCANCEL) — 취소 (SDK: `MB_OKCANCEL_IDCANCEL`)
-    pub const OKCANCEL_IDCANCEL: i32 = 0x0000_0020;
+    pub const OKCANCEL_IDCANCEL: Self = Self(0x0000_0020);
     /// 확인/취소(MB_OKCANCEL) 자리 마스크 (SDK: `MB_OKCANCEL_MASK`)
-    pub const OKCANCEL_MASK: i32 = 0x0000_00F0;
+    pub const OKCANCEL_MASK: Self = Self(0x0000_00F0);
 
     /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) — 종료 (SDK: `MB_ABORTRETRYIGNORE_IDABORT`)
-    pub const ABORTRETRYIGNORE_IDABORT: i32 = 0x0000_0100;
+    pub const ABORTRETRYIGNORE_IDABORT: Self = Self(0x0000_0100);
     /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) — 재시도 (SDK: `MB_ABORTRETRYIGNORE_IDRETRY`)
-    pub const ABORTRETRYIGNORE_IDRETRY: i32 = 0x0000_0200;
+    pub const ABORTRETRYIGNORE_IDRETRY: Self = Self(0x0000_0200);
     /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) — 무시 (SDK: `MB_ABORTRETRYIGNORE_IDIGNORE`)
-    pub const ABORTRETRYIGNORE_IDIGNORE: i32 = 0x0000_0400;
+    pub const ABORTRETRYIGNORE_IDIGNORE: Self = Self(0x0000_0400);
     /// 종료/재시도/무시(MB_ABORTRETRYIGNORE) 자리 마스크 (SDK: `MB_ABORTRETRYIGNORE_MASK`)
-    pub const ABORTRETRYIGNORE_MASK: i32 = 0x0000_0F00;
+    pub const ABORTRETRYIGNORE_MASK: Self = Self(0x0000_0F00);
 
     /// 예/아니오/취소(MB_YESNOCANCEL) — 예 (SDK: `MB_YESNOCANCEL_IDYES`)
-    pub const YESNOCANCEL_IDYES: i32 = 0x0000_1000;
+    pub const YESNOCANCEL_IDYES: Self = Self(0x0000_1000);
     /// 예/아니오/취소(MB_YESNOCANCEL) — 아니오 (SDK: `MB_YESNOCANCEL_IDNO`)
-    pub const YESNOCANCEL_IDNO: i32 = 0x0000_2000;
+    pub const YESNOCANCEL_IDNO: Self = Self(0x0000_2000);
     /// 예/아니오/취소(MB_YESNOCANCEL) — 취소 (SDK: `MB_YESNOCANCEL_IDCANCEL`)
-    pub const YESNOCANCEL_IDCANCEL: i32 = 0x0000_4000;
+    pub const YESNOCANCEL_IDCANCEL: Self = Self(0x0000_4000);
     /// 예/아니오/취소(MB_YESNOCANCEL) 자리 마스크 (SDK: `MB_YESNOCANCEL_MASK`)
-    pub const YESNOCANCEL_MASK: i32 = 0x0000_F000;
+    pub const YESNOCANCEL_MASK: Self = Self(0x0000_F000);
 
     /// 예/아니오(MB_YESNO) — 예 (SDK: `MB_YESNO_IDYES`)
-    pub const YESNO_IDYES: i32 = 0x0001_0000;
+    pub const YESNO_IDYES: Self = Self(0x0001_0000);
     /// 예/아니오(MB_YESNO) — 아니오 (SDK: `MB_YESNO_IDNO`)
-    pub const YESNO_IDNO: i32 = 0x0002_0000;
+    pub const YESNO_IDNO: Self = Self(0x0002_0000);
     /// 예/아니오(MB_YESNO) 자리 마스크 (SDK: `MB_YESNO_MASK`)
-    pub const YESNO_MASK: i32 = 0x000F_0000;
+    pub const YESNO_MASK: Self = Self(0x000F_0000);
 
     /// 재시도/취소(MB_RETRYCANCEL) — 재시도 (SDK: `MB_RETRYCANCEL_IDRETRY`)
-    pub const RETRYCANCEL_IDRETRY: i32 = 0x0010_0000;
+    pub const RETRYCANCEL_IDRETRY: Self = Self(0x0010_0000);
     /// 재시도/취소(MB_RETRYCANCEL) — 취소 (SDK: `MB_RETRYCANCEL_IDCANCEL`)
-    pub const RETRYCANCEL_IDCANCEL: i32 = 0x0020_0000;
+    pub const RETRYCANCEL_IDCANCEL: Self = Self(0x0020_0000);
     /// 재시도/취소(MB_RETRYCANCEL) 자리 마스크 (SDK: `MB_RETRYCANCEL_MASK`)
-    pub const RETRYCANCEL_MASK: i32 = 0x00F0_0000;
+    pub const RETRYCANCEL_MASK: Self = Self(0x00F0_0000);
+    /// SDK에 넘길 `long` 값
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    /// `long` 값을 그대로 감싼다. 정의되지 않은 비트도 버리지 않는다.
+    pub const fn from_bits_retain(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    /// `other`의 비트가 모두 켜져 있는지
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+}
+
+impl std::ops::BitOr for MessageBoxMode {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for MessageBoxMode {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+impl std::ops::BitAnd for MessageBoxMode {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
 }
 
 // =========================================================================
@@ -454,20 +504,25 @@ impl HwpObject {
     /// `GetMessageBoxMode` — 현재 메시지 상자 mode를 얻습니다.
     ///
     /// SDK: `long GetMessageBoxMode()`
-    /// - 반환값 — [`msgbox`]의 상수를 조합한 값
-    pub fn get_message_box_mode(&self) -> crate::error::Result<i32> {
-        self.call("GetMessageBoxMode")
+    /// - 반환값 — [`MessageBoxMode`] 상수의 조합
+    pub fn get_message_box_mode(&self) -> crate::error::Result<MessageBoxMode> {
+        self.call::<i32>("GetMessageBoxMode")
+            .map(MessageBoxMode::from_bits_retain)
     }
 
     /// `SetMessageBoxMode` — 한글의 메시지 상자를 띄우지 않고, 지정한 버튼을 자동으로
     /// 누른 효과를 줍니다.
     ///
     /// SDK: `long SetMessageBoxMode(long mode)`
-    /// - `mode` — [`msgbox`]의 상수를 `|`로 조합한 값
+    /// - `mode` — [`MessageBoxMode`] 상수를 `|`로 조합한 값
     ///
     /// 반환값은 이 호출 전에 적용되어 있던 mode입니다. 되돌릴 때 다시 넘기면 됩니다.
-    pub fn set_message_box_mode(&self, mode: i32) -> crate::error::Result<i32> {
-        self.call_with("SetMessageBoxMode", vec![mode.into_variant()?])
+    pub fn set_message_box_mode(
+        &self,
+        mode: MessageBoxMode,
+    ) -> crate::error::Result<MessageBoxMode> {
+        self.call_with::<i32>("SetMessageBoxMode", vec![mode.bits().into_variant()?])
+            .map(MessageBoxMode::from_bits_retain)
     }
 
     /// `RegisterModule` — 보안 모듈을 등록합니다.
