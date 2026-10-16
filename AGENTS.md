@@ -60,7 +60,8 @@ Two modes of interacting with HWP:
 
 ## HWP SDK Documentation
 
-Official SDK docs are in `hwp_sdk_doc/` (2025.04 edition, gitignored):
+한컴이 공개한 SDK 문서(2025.04판)의 원본은 [hancom-io/devcenter-archive](https://github.com/hancom-io/devcenter-archive)에 있다.
+같은 파일을 `hwp_sdk_doc/`(gitignored)에 받아 두고 읽는다. IDL 두 개와 HWPML 명세는 archive에 없다.
 
 - **`HwpAutomation_2504.pdf`** — OLE Automation API reference (methods, properties, events)
 - **`ActionTable_2504.pdf`** — complete table of HWP action IDs
@@ -69,8 +70,10 @@ Official SDK docs are in `hwp_sdk_doc/` (2025.04 edition, gitignored):
 - **`한글오토메이션EventHandler추가_2504.pdf`** — EventHandler addition for Automation
 - **`HwpCtrl.tlb.IDL`** — HwpCtrl COM 타입 라이브러리 IDL
 - **`HwpObject.tlb.IDL`** — HwpObject COM 타입 라이브러리 IDL
+- **`한글문서파일형식3.0_HWPML_revision1.2.pdf`** — HWPML 파일 형식 명세
+- **`보안모듈(Automation)/`** — 파일 경로 검사 보안 모듈(`RegisterModule("FilePathCheckDLL", ..)`) 예제: C++ 소스, 빌드된 32비트 DLL, 레지스트리 등록 화면
 
-전체 파일 목록은 `hwp_sd_doc_종류.md` 참고.
+archive 경로와 파일별 출처는 `hwp_sd_doc_종류.md` 참고.
 
 ## HWP ADDON/UserAction sample in vsc++
 

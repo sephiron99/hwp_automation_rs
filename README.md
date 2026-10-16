@@ -10,6 +10,8 @@
 
 SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구현상 가정은 [HWP 실전 노트](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_실전_노트.md)에 정리했습니다.
 
+한컴의 공식 SDK 문서(Automation API, Action·ParameterSet 표, 애드온 개발 안내서, 보안 모듈 예제)는 [hancom-io/devcenter-archive](https://github.com/hancom-io/devcenter-archive)를 참고하세요.
+
 ---
 
 ## 특징
@@ -343,7 +345,7 @@ hwp.save_as(path, "HWPX", "")?;
 
 ## HWP SDK 문서
 
-공식 SDK 문서는 `hwp_sdk_doc/` 디렉토리에 있습니다 (gitignore됨). 포함 파일 목록은 [`hwp_sd_doc_종류.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_sd_doc_종류.md)를 참고하세요.
+한컴이 공개한 SDK 문서는 [hancom-io/devcenter-archive](https://github.com/hancom-io/devcenter-archive)에서 받을 수 있습니다. method와 Action 이름은 `hwp-automation/` 디렉터리의 `HwpAutomation_2504.pdf`, `ActionTable_2504.pdf`, `ParameterSetTable_2504.pdf`를 기준으로 합니다. 애드온 개발 안내서는 `hwp-control/Addon-Action.pdf`입니다.
 
 ---
 
