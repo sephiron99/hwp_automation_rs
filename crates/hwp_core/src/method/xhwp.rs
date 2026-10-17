@@ -56,14 +56,16 @@ impl XHwpDocuments {
 
 /// `IXHwpDocument.EditMode`의 값 — 문서의 편집 모드
 ///
-/// SDK에 적힌 값 밖의 값이 와도 버리지 않고 그대로 보존한다([`from_bits_retain`](Self::from_bits_retain)).
+/// 값이 비트 조합으로 올 수 있으므로 `==` 대신 [`contains`](Self::contains)로 판단한다.
+/// 배포용 문서는 16 비트로 판단한다(실측 17).
 ///
 /// SDK 참고: HwpAutomation_2504.pdf § IHwpObject `EditMode(Property)`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EditMode(i32);
 
 impl EditMode {
-    /// 읽기 전용 (SDK: 0)
+    /// 읽기 전용 (SDK: 0). 0이라 `contains`로는 판단할 수 없으므로
+    /// [`is_read_only`](Self::is_read_only)로 판단한다.
     pub const READ_ONLY: Self = Self(0);
     /// 일반 편집 모드 (SDK: 1)
     pub const NORMAL: Self = Self(1);
@@ -81,6 +83,18 @@ impl EditMode {
     /// `long` 값을 그대로 감싼다. 정의되지 않은 값도 버리지 않는다.
     pub const fn from_bits_retain(bits: i32) -> Self {
         Self(bits)
+    }
+
+    /// `other`의 비트가 모두 켜져 있는지
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    /// 읽기 전용인지. 배포용 비트(16)는 빼고 판단한다.
+    ///
+    /// 16 말고 다른 비트가 함께 오면 false가 된다.
+    pub const fn is_read_only(self) -> bool {
+        self.0 & !Self::DISTRIBUTION.0 == 0
     }
 }
 
