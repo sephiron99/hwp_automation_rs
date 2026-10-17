@@ -5,7 +5,7 @@ use crate::error::{Result, ensure};
 use crate::variant::IntoVariant;
 
 // =========================================================================
-// CXHwpDocuments — HWP 문서(도큐먼트) 컬렉션
+// CXHwpDocuments — HWP 문서(Document) 컬렉션
 // =========================================================================
 
 hwp_com_type!(
@@ -16,7 +16,7 @@ hwp_com_type!(
 );
 
 impl XHwpDocuments {
-    /// 현재 활성화 상태인 도큐먼트를 반환합니다.
+    /// 현재 활성화 상태인 Document를 반환합니다.
     ///
     /// SDK: `Active_XHwpDocument(Property)` — IXHwpDocument
     pub fn active(&self) -> Result<XHwpDocument> {
@@ -37,7 +37,7 @@ impl XHwpDocuments {
         self.get_with("Item", vec![index.into_variant()?])
     }
 
-    /// 도큐먼트 오브젝트를 추가합니다.
+    /// Document 오브젝트를 추가합니다.
     ///
     /// SDK: `LPDISPATCH Add(BOOL isTab)`
     /// - `is_tab = true` → 새 탭으로 열림
@@ -46,7 +46,7 @@ impl XHwpDocuments {
         self.call_with("Add", vec![is_tab.into_variant()?])
     }
 
-    /// 도큐먼트 아이디로 지정된 도큐먼트를 찾습니다.
+    /// Document 아이디로 지정된 Document를 찾습니다.
     ///
     /// SDK: `LPDISPATCH FindItem(long Docid)`
     pub fn find_item(&self, doc_id: i32) -> Result<XHwpDocument> {
@@ -55,7 +55,7 @@ impl XHwpDocuments {
 }
 
 // =========================================================================
-// CXHwpDocument — HWP 개별 문서(도큐먼트)
+// CXHwpDocument — HWP 개별 문서(Document)
 // =========================================================================
 
 hwp_com_type!(
@@ -66,49 +66,49 @@ hwp_com_type!(
 );
 
 impl XHwpDocument {
-    /// 도큐먼트의 Path를 반환합니다 (읽기 전용).
+    /// Document의 Path를 반환합니다 (읽기 전용).
     ///
     /// SDK: `Path(Property)`
     pub fn path(&self) -> Result<String> {
         self.get("Path")
     }
 
-    /// 도큐먼트의 전체 경로를 반환합니다 (읽기 전용).
+    /// Document의 전체 경로를 반환합니다 (읽기 전용).
     ///
     /// SDK: `FullName(Property)`
     pub fn full_name(&self) -> Result<String> {
         self.get("FullName")
     }
 
-    /// 도큐먼트의 에디트 모드를 반환합니다.
+    /// Document의 에디트 모드를 반환합니다.
     ///
     /// SDK: `EditMode(Property)` — 0: 읽기, 1: 일반 편집, 2: 양식 모드, 16: 배포용
     pub fn edit_mode(&self) -> Result<i32> {
         self.get("EditMode")
     }
 
-    /// 도큐먼트의 변경 여부를 반환합니다.
+    /// Document의 변경 여부를 반환합니다.
     ///
     /// SDK: `Modified(Property)`
     pub fn modified(&self) -> Result<bool> {
         self.get("Modified")
     }
 
-    /// 도큐먼트의 저장된 포맷을 반환합니다 (읽기 전용).
+    /// Document의 저장된 포맷을 반환합니다 (읽기 전용).
     ///
     /// SDK: `Format(Property)`
     pub fn format(&self) -> Result<String> {
         self.get("Format")
     }
 
-    /// 도큐먼트의 고유 ID를 반환합니다 (읽기 전용).
+    /// Document의 고유 ID를 반환합니다 (읽기 전용).
     ///
     /// SDK: `DocumentID(Property)`
     pub fn document_id(&self) -> Result<i32> {
         self.get("DocumentID")
     }
 
-    /// 이 도큐먼트를 활성화 상태로 만듭니다.
+    /// 이 Document를 활성화 상태로 만듭니다.
     ///
     /// SDK: `SetActive_XHwpDocument(Method)` — 문서를 활성화 상태로 하기
     pub fn set_active(&self) -> Result<()> {
@@ -370,15 +370,14 @@ hwp_com_type!(
 
 impl XHncToolBoxToolbar {
     /// 탭을 삽입합니다. `index = -1`이면 끝에 추가합니다.
-    pub fn insert_toolbox_tab(
-        &self,
-        index: i32,
-        uid: &str,
-        name: &str,
-    ) -> Result<XHncToolBoxTab> {
+    pub fn insert_toolbox_tab(&self, index: i32, uid: &str, name: &str) -> Result<XHncToolBoxTab> {
         self.call_with(
             "InsertToolBoxTab",
-            vec![index.into_variant()?, uid.into_variant()?, name.into_variant()?],
+            vec![
+                index.into_variant()?,
+                uid.into_variant()?,
+                name.into_variant()?,
+            ],
         )
     }
 
@@ -419,15 +418,14 @@ impl XHncToolBoxTab {
     }
 
     /// 탭 내에 ToolBox를 삽입합니다.
-    pub fn insert_toolbox(
-        &self,
-        index: i32,
-        uid: &str,
-        name: &str,
-    ) -> Result<XHncToolBox> {
+    pub fn insert_toolbox(&self, index: i32, uid: &str, name: &str) -> Result<XHncToolBox> {
         self.call_with(
             "InsertToolBox",
-            vec![index.into_variant()?, uid.into_variant()?, name.into_variant()?],
+            vec![
+                index.into_variant()?,
+                uid.into_variant()?,
+                name.into_variant()?,
+            ],
         )
     }
 }
@@ -480,11 +478,7 @@ hwp_com_type!(
 
 impl XHncToolBoxGroup {
     /// 아이템을 삽입합니다. `index = -1`이면 끝에 추가합니다.
-    pub fn insert_item(
-        &self,
-        index: i32,
-        item: crate::disp_obj::DispObj,
-    ) -> Result<i32> {
+    pub fn insert_item(&self, index: i32, item: crate::disp_obj::DispObj) -> Result<i32> {
         self.call_with(
             "InsertItem",
             vec![index.into_variant()?, item.into_variant()?],

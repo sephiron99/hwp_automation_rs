@@ -370,9 +370,9 @@ impl HwpObject {
 
     // ── 프로퍼티 ──
 
-    /// `XHwpDocuments` 프로퍼티 — HWP 문서(도큐먼트) 컬렉션
+    /// `XHwpDocuments` 프로퍼티 — HWP 문서(Document) 컬렉션
     ///
-    /// SDK: `IHwpObject.XHwpDocuments(Property)` — 도큐먼트를 관리하는 XHwpDocuments Object를 얻는다.
+    /// SDK: `IHwpObject.XHwpDocuments(Property)` — Document를 관리하는 XHwpDocuments Object를 얻는다.
     pub fn documents(&self) -> crate::error::Result<crate::method::xhwp::XHwpDocuments> {
         self.get("XHwpDocuments")
     }
@@ -552,7 +552,9 @@ impl HwpObject {
             "RegisterModule",
             vec![module_type.into_variant()?, module_data.into_variant()?],
         )?;
-        ensure(ok, || format!("RegisterModule({module_type:?}, {module_data:?})"))
+        ensure(ok, || {
+            format!("RegisterModule({module_type:?}, {module_data:?})")
+        })
     }
 
     /// `InitScan` — 문서 텍스트 검색을 초기화합니다.
@@ -597,7 +599,9 @@ impl HwpObject {
                 epos.into_variant()?,
             ],
         )?;
-        ensure(ok, || format!("InitScan(option=0x{option:02x}, range=0x{range_val:04x})"))
+        ensure(ok, || {
+            format!("InitScan(option=0x{option:02x}, range=0x{range_val:04x})")
+        })
     }
 
     /// `GetText` — 커서가 가리키는 단락의 텍스트를 읽고, 커서를 다음 단락으로 이동합니다.
@@ -682,7 +686,9 @@ impl HwpObject {
                 epos.into_variant()?,
             ],
         )?;
-        ensure(ok, || format!("SelectText({spara}, {spos}, {epara}, {epos})"))
+        ensure(ok, || {
+            format!("SelectText({spara}, {spos}, {epara}, {epos})")
+        })
     }
 
     /// `KeyIndicator` — 현재 커서 위치의 정보를 가져오고 상태 표시줄을 강제로 갱신합니다.

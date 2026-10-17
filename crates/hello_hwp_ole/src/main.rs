@@ -15,7 +15,7 @@ fn main() -> hwp_com::Result<()> {
     Ok(())
 }
 
-/// 실행 중인 모든 한글 인스턴스의 각 창(도큐먼트)을 순서대로 활성화하며,
+/// 실행 중인 모든 한글 인스턴스의 각 창(Document)을 순서대로 활성화하며,
 /// 해당 창에 자신의 인덱스를 텍스트로 삽입합니다.
 ///
 /// `XHwpDocuments.Item(i)` (0-based)로 각 문서를 얻어 `SetActive_XHwpDocument`로
