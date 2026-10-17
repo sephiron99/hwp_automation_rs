@@ -54,6 +54,36 @@ impl XHwpDocuments {
     }
 }
 
+/// `IXHwpDocument.EditMode`의 값 — 문서의 편집 모드
+///
+/// SDK에 적힌 값 밖의 값이 와도 버리지 않고 그대로 보존한다([`from_bits_retain`](Self::from_bits_retain)).
+///
+/// SDK 참고: HwpAutomation_2504.pdf § IHwpObject `EditMode(Property)`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EditMode(i32);
+
+impl EditMode {
+    /// 읽기 전용 (SDK: 0)
+    pub const READ_ONLY: Self = Self(0);
+    /// 일반 편집 모드 (SDK: 1)
+    pub const NORMAL: Self = Self(1);
+    /// 양식 모드(양식 사용자 모드). 셀과 누름틀 가운데 양식 모드에서 편집 가능 속성을 가진
+    /// 것만 편집할 수 있다. (SDK: 2)
+    pub const FORM: Self = Self(2);
+    /// 배포용 문서. SDK에 "SetEditMode로 지정 불가능"이라고 적혀 있다. (SDK: 16)
+    pub const DISTRIBUTION: Self = Self(16);
+
+    /// SDK에 넘길 `long` 값
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    /// `long` 값을 그대로 감싼다. 정의되지 않은 값도 버리지 않는다.
+    pub const fn from_bits_retain(bits: i32) -> Self {
+        Self(bits)
+    }
+}
+
 // =========================================================================
 // CXHwpDocument — HWP 개별 문서(Document)
 // =========================================================================
@@ -80,11 +110,11 @@ impl XHwpDocument {
         self.get("FullName")
     }
 
-    /// Document의 에디트 모드를 반환합니다.
+    /// Document의 편집 모드를 반환합니다.
     ///
-    /// SDK: `EditMode(Property)` — 0: 읽기, 1: 일반 편집, 2: 양식 모드, 16: 배포용
-    pub fn edit_mode(&self) -> Result<i32> {
-        self.get("EditMode")
+    /// SDK: `EditMode(Property)` — [`EditMode`] 참고
+    pub fn edit_mode(&self) -> Result<EditMode> {
+        self.get::<i32>("EditMode").map(EditMode::from_bits_retain)
     }
 
     /// Document의 변경 여부를 반환합니다.
