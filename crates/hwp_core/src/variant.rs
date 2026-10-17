@@ -1,7 +1,7 @@
 use crate::error::HwpError;
 use std::mem::ManuallyDrop;
 use windows::core::BSTR;
-use windows::Win32::Foundation::VARIANT_BOOL;
+use windows::Win32::Foundation::{E_OUTOFMEMORY, SysAllocStringLen, VARIANT_BOOL};
 use windows::Win32::System::Variant::*;
 
 /// COM VARIANT → Rust 타입 변환
@@ -165,7 +165,17 @@ impl IntoVariant for f64 {
 
 impl IntoVariant for &str {
     fn into_variant(self) -> crate::error::Result<VARIANT> {
-        let bstr = BSTR::from(self);
+        let bstr = if self.is_empty() {
+            // windows-rs의 BSTR은 빈 문자열을 할당하지 않고 NULL로 만든다. 한글 SaveAs는
+            // NULL arg에서 예외를 내므로(hwp_실전_노트.md 12절) 길이 0으로 할당한 BSTR을 넘긴다.
+            let raw = unsafe { SysAllocStringLen(Some(&[])) }.into_raw();
+            if raw.is_null() {
+                return Err(windows::core::Error::from(E_OUTOFMEMORY).into());
+            }
+            unsafe { BSTR::from_raw(raw) }
+        } else {
+            BSTR::from(self)
+        };
         let mut v = VARIANT::default();
         unsafe {
             let inner = variant_inner(&mut v);

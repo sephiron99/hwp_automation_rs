@@ -293,6 +293,26 @@ WSL 빌드에서는 Rust 컴파일과 Windows 링커 실행을 구분한다. 링
 
 근거: [편의 API](crates/hwp_core/src/ext/mod.rs), [책갈피 ParameterSet](crates/hwp_core/src/pset/mod.rs).
 
+## 12. 한글은 NULL BSTR을 빈 문자열로 받지 않는다
+
+이 절은 2026-10-17에 추가했다. 관찰은 한글 2018(10.0.0.14939)에서 했다.
+
+**증상.** `../hwp2hwpx`가 `hwp.save_as(dst, "HWPX", "")`를 부르면 `SaveAs`가 `0x80010105`(RPC_E_SERVERFAULT, "서버에서 예외 오류가 발생했습니다")로 실패하고 파일이 생기지 않았다. 바로 앞의 `open(src, "HWP", "forceopen:true;...")`는 성공했고, 한글 프로세스는 죽지 않았다.
+
+**진단 결과.** windows-rs의 `BSTR`은 빈 문자열을 할당하지 않고 NULL로 만든다(`windows-strings`의 `BSTR::from_wide`). COM 규약상 NULL BSTR은 빈 문자열과 같아야 하지만, 한글 `SaveAs`는 세 번째 인자 `arg`가 NULL이면 예외를 낸다.
+
+| 호출 방법 | 결과 |
+|---|---|
+| PowerShell(64·32비트) `SaveAs(dst, "HWPX", "")` | 성공. PowerShell은 할당한 빈 BSTR을 넘긴다 |
+| `hwp_com`으로 같은 순서로 호출, `arg = ""` | 실패(`0x80010105`). 주 스레드든 작업 스레드든 같다 |
+| `hwp_com`, `arg = "lock:false"` | 성공 |
+
+**대응.** `IntoVariant for &str`는 빈 문자열을 `SysAllocStringLen`으로 길이 0만큼 할당한 BSTR로 넘긴다. 빈 문자열이 아니면 전처럼 `BSTR::from`을 쓴다.
+
+**확인 범위.** 고친 뒤 같은 날 `hwp2hwpx`의 시험 프로그램으로 `open` → `save_as(dst, "HWPX", "")`를 다시 실행해 `save_as`가 성공하고 파일이 생긴 것을 확인했다. NULL 처리가 문제 되는지 확인한 것은 `SaveAs`의 `arg`뿐이다. 다른 method가 NULL BSTR을 어떻게 다루는지는 확인하지 않았다.
+
+근거: [VARIANT 변환](crates/hwp_core/src/variant.rs).
+
 ## 기존 문서·주석을 읽을 때의 정정 사항
 
 오래된 설명을 다시 구현 근거로 삼지 않도록 차이를 남긴다. 아래 항목은 현재 코드와 SDK를 대조한 결과이며, 이 문서 작성으로 해당 소스나 과거 문서를 일괄 수정하지는 않았다.
