@@ -8,7 +8,9 @@ use crate::error::Result;
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CHParameterSet` 대응. 각종 액션 파라미터 셋의 컨테이너입니다.
+    /// SDK `HParameterSet` 대응 — 파라메터셋 오브젝트를 관리하는 HParameterSet Object.
+    ///
+    /// SDK 참고: HwpAutomation_2504.pdf § IHwpObject `HParameterSet(Property)`
     HParameterSet
 );
 
@@ -38,7 +40,7 @@ impl HParameterSet {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CHCharShape` 대응. `CharShape` 액션의 파라미터 셋입니다.
+    /// SDK ParameterSet `CharShape` 대응 — 글자 모양. `CharShape` 액션의 파라미터 셋입니다.
     ///
     /// SDK 참고: ParameterSetTable_2504.pdf § CharShape
     HCharShape
@@ -56,7 +58,7 @@ impl HCharShape {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CHParaShape` 대응. `ParaShape` 액션의 파라미터 셋입니다.
+    /// SDK ParameterSet `ParaShape` 대응 — 문단 모양. `ParaShape` 액션의 파라미터 셋입니다.
     ///
     /// SDK 참고: ParameterSetTable_2504.pdf § ParaShape
     HParaShape
@@ -74,7 +76,9 @@ impl HParaShape {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CHInsertText` 대응. 텍스트 삽입 액션의 파라미터입니다.
+    /// SDK ParameterSet `InsertText` 대응 — 텍스트 삽입. `InsertText` 액션의 파라미터 셋입니다.
+    ///
+    /// SDK 참고: ParameterSetTable_2504.pdf § InsertText
     HInsertText
 );
 
@@ -98,7 +102,7 @@ impl HInsertText {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CHBookMark` 대응. `Bookmark`, `ModifyBookmark` 액션의 파라미터 셋입니다.
+    /// SDK ParameterSet `BookMark` 대응 — 책갈피. `Bookmark`, `ModifyBookmark` 액션의 파라미터 셋입니다.
     ///
     /// SDK 참고: ParameterSetTable_2504.pdf § BookMark
     HBookMark

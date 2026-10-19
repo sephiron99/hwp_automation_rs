@@ -9,7 +9,9 @@ use crate::variant::IntoVariant;
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CHAction` 대응. HWP 액션을 실행합니다.
+    /// SDK `HAction` 대응 — 한/글에서 특정 기능을 수행하기 위한 액션 오브젝트.
+    ///
+    /// SDK 참고: HwpAutomation_2504.pdf § HAction
     HAction
 );
 

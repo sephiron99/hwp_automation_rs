@@ -9,9 +9,9 @@ use crate::variant::IntoVariant;
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpDocuments` 대응. 열린 문서(탭) 목록을 관리합니다.
+    /// SDK `IXHwpDocuments` 대응 — IXHwpDocument(Document) 오브젝트를 관리하는 오브젝트.
     ///
-    /// SDK: `IXHwpDocuments` — Document를 관리하는 Collection 개체
+    /// SDK 참고: HwpAutomation_2504.pdf § IXHwpDocuments
     XHwpDocuments
 );
 
@@ -103,9 +103,9 @@ impl EditMode {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpDocument` 대응. 개별 문서 객체입니다.
+    /// SDK `IXHwpDocument` 대응 — Document 오브젝트.
     ///
-    /// SDK: `IXHwpDocument` — Document 개체
+    /// SDK 참고: HwpAutomation_2504.pdf § IXHwpDocument
     XHwpDocument
 );
 
@@ -165,7 +165,9 @@ impl XHwpDocument {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpWindows` 대응. HWP 창 목록을 관리합니다.
+    /// SDK `IXHwpWindows` 대응 — IXHwpWindow 오브젝트를 관리하는 오브젝트.
+    ///
+    /// SDK 참고: HwpAutomation_2504.pdf § IXHwpWindows
     XHwpWindows
 );
 
@@ -189,7 +191,9 @@ impl XHwpWindows {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpWindow` 대응. 개별 HWP 창을 제어합니다.
+    /// SDK `IXHwpWindow` 대응 — 윈도우 오브젝트.
+    ///
+    /// SDK 참고: HwpAutomation_2504.pdf § IXHwpWindow
     XHwpWindow
 );
 
@@ -245,7 +249,9 @@ impl XHwpWindow {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpToolbarLayout` 대응. 툴바 생성/삭제/조회를 담당합니다.
+    /// SDK `IXHwpToolbarLayout` 대응 — 툴바나 툴바 버튼의 생성/삭제와 관련된 작업을 한다.
+    ///
+    /// SDK 참고: Addon-Action.pdf § 3. Toolbar 관련 개체 › 가. IXHwpToolbarLayout
     XHwpToolbarLayout
 );
 
@@ -333,7 +339,10 @@ impl XHwpToolbarLayout {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpToolbar` 대응. 툴바에 버튼을 삽입/삭제합니다.
+    /// SDK `IXHwpToolbar` 대응. 툴바 버튼을 추가·삭제하거나 얻어 온다.
+    ///
+    /// SDK 참고: Addon-Action.pdf § 3. Toolbar 관련 개체 › 나. IXHwpToolbar
+    /// (개체 설명 없이 메서드 설명만 있다)
     XHwpToolbar
 );
 
@@ -371,7 +380,10 @@ impl XHwpToolbar {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpToolbarButton` 대응. 툴바 버튼 객체입니다.
+    /// SDK `IXHwpToolbarButton` 대응. 툴바 버튼이며, 툴바와 메뉴 양쪽에 쓸 수 있다.
+    ///
+    /// SDK 참고: Addon-Action.pdf § 3. Toolbar 관련 개체 › 다. IXHwpToolbarButton
+    /// (개체 설명 없이 메서드 설명만 있다)
     XHwpToolbarButton
 );
 
@@ -380,7 +392,10 @@ hwp_com_type!(
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHwpToolbarMenuButton` 대응. 메뉴 버튼/서브메뉴 컨테이너입니다.
+    /// SDK `IXHwpToolbarMenuButton` 대응 — IXHwpToolbarButton을 상속받으므로 IXHwpToolbarButton의
+    /// 모든 함수를 사용할 수 있다. 서브 메뉴 버튼을 추가·삭제하거나 얻어 온다.
+    ///
+    /// SDK 참고: Addon-Action.pdf § 3. Toolbar 관련 개체 › 라. IXHwpToolbarMenuButton
     XHwpToolbarMenuButton
 );
 
@@ -408,7 +423,10 @@ impl XHwpToolbarMenuButton {
 // =========================================================================
 
 hwp_com_type!(
-    /// C++ `CXHncToolBoxToolbar` 대응. ToolBox(리본) 최상위 객체입니다.
+    /// ToolBox(리본)의 최상위 객체. [`XHwpToolbarLayout::get_toolbox_toolbar`]가 돌려준다.
+    ///
+    /// SDK 문서와 `HwpObject.tlb.IDL`에 이 인터페이스의 설명이 없다. 이름과 멤버는 C++ 샘플
+    /// `HncUserActionSample/Objects/HncObjects/CXHncToolBoxToolbar.h`에서 가져왔으므로 동작은 실환경 확인이 필요하다.
     XHncToolBoxToolbar
 );
 
@@ -448,7 +466,10 @@ impl XHncToolBoxToolbar {
 }
 
 hwp_com_type!(
-    /// C++ `CXHncToolBoxTab` 대응. ToolBox 탭입니다.
+    /// ToolBox 탭.
+    ///
+    /// SDK 문서와 `HwpObject.tlb.IDL`에 이 인터페이스의 설명이 없다. 이름과 멤버는 C++ 샘플
+    /// `HncUserActionSample/Objects/HncObjects/CXHncToolBoxTab.h`에서 가져왔으므로 동작은 실환경 확인이 필요하다.
     XHncToolBoxTab
 );
 
@@ -475,7 +496,10 @@ impl XHncToolBoxTab {
 }
 
 hwp_com_type!(
-    /// C++ `CXHncToolBox` 대응. 탭 내의 ToolBox 컨테이너입니다.
+    /// 탭 안의 ToolBox.
+    ///
+    /// SDK 문서와 `HwpObject.tlb.IDL`에 이 인터페이스의 설명이 없다. 이름과 멤버는 C++ 샘플
+    /// `HncUserActionSample/Objects/HncObjects/CXHncToolBox.h`에서 가져왔으므로 동작은 실환경 확인이 필요하다.
     XHncToolBox
 );
 
@@ -487,7 +511,10 @@ impl XHncToolBox {
 }
 
 hwp_com_type!(
-    /// C++ `CXHncToolBoxLayout` 대응. ToolBox 레이아웃입니다.
+    /// ToolBox 레이아웃.
+    ///
+    /// SDK 문서와 `HwpObject.tlb.IDL`에 이 인터페이스의 설명이 없다. 이름과 멤버는 C++ 샘플
+    /// `HncUserActionSample/Objects/HncObjects/CXHncToolBoxLayout.h`에서 가져왔으므로 동작은 실환경 확인이 필요하다.
     XHncToolBoxLayout
 );
 
@@ -516,7 +543,10 @@ impl XHncToolBoxLayout {
 }
 
 hwp_com_type!(
-    /// C++ `CXHncToolBoxGroup` 대응. ToolBox 그룹입니다.
+    /// ToolBox 그룹.
+    ///
+    /// SDK 문서와 `HwpObject.tlb.IDL`에 이 인터페이스의 설명이 없다. 이름과 멤버는 C++ 샘플
+    /// `HncUserActionSample/Objects/HncObjects/CXHncToolBoxGroup.h`에서 가져왔으므로 동작은 실환경 확인이 필요하다.
     XHncToolBoxGroup
 );
 
