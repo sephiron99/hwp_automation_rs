@@ -50,6 +50,7 @@ macro_rules! hwp_com_type {
 /// let window: DispObj = windows.get("Active_XHwpWindow")?;
 /// let layout: DispObj = window.get("XHwpToolbarLayout")?;
 /// ```
+#[derive(Clone)]
 pub struct DispObj(pub(crate) IDispatch);
 
 impl DispObj {

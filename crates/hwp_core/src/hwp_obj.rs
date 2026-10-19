@@ -1,4 +1,5 @@
 use crate::com_util;
+use crate::disp_obj::DispObj;
 use crate::hwp_ver::HwpVer;
 use crate::variant::FromVariant;
 use windows::core::Interface;
@@ -11,7 +12,7 @@ use windows::Win32::System::Variant::VARIANT;
 /// 인스턴스를 가리킨다. 'static 클로저(팝업 콜백 등)에 소유값으로 넘길 때 사용.
 #[derive(Clone)]
 pub struct HwpObject {
-    pub(crate) dispatch: IDispatch,
+    obj: DispObj,
     ver: HwpVer,
 }
 
@@ -35,7 +36,10 @@ impl HwpObject {
     /// 소유권 있는 `IDispatch`로 `HwpObject`를 생성합니다.
     pub fn new(dispatch: IDispatch) -> crate::error::Result<Self> {
         let ver = Self::detect_version(&dispatch);
-        Ok(Self { dispatch, ver })
+        Ok(Self {
+            obj: DispObj(dispatch),
+            ver,
+        })
     }
 
     /// Addon FFI용: raw `IDispatch` 포인터에서 `HwpObject`를 생성합니다.
@@ -51,7 +55,10 @@ impl HwpObject {
         }
         let dispatch: IDispatch = unsafe { IDispatch::from_raw(raw) };
         let ver = Self::detect_version(&dispatch);
-        Ok(Self { dispatch, ver })
+        Ok(Self {
+            obj: DispObj(dispatch),
+            ver,
+        })
     }
 
     /// 현재 한글 버전을 반환합니다.
@@ -64,7 +71,7 @@ impl HwpObject {
 
     /// COM 마샬링을 위해 내부 `IDispatch`의 참조를 반환합니다.
     pub fn as_dispatch(&self) -> &IDispatch {
-        &self.dispatch
+        &self.obj.0
     }
 
     /// `IDispatch`의 raw 포인터를 반환합니다.
@@ -73,21 +80,19 @@ impl HwpObject {
     /// 참조 카운트에 영향을 주지 않으므로, 반환된 포인터로 `HwpObject`를 생성한 경우
     /// 반드시 `std::mem::forget`으로 Drop을 방지해야 합니다.
     pub fn as_raw_dispatch(&self) -> *mut std::ffi::c_void {
-        self.dispatch.as_raw()
+        self.obj.0.as_raw()
     }
 
     // ── 범용 COM 접근 헬퍼 ──
 
     /// 프로퍼티 읽기
     pub fn get<T: FromVariant>(&self, name: &str) -> crate::error::Result<T> {
-        let var = com_util::get_property(&self.dispatch, name)?;
-        T::from_variant(&var)
+        self.obj.get(name)
     }
 
     /// 인자 없는 메서드 호출
     pub fn call<T: FromVariant>(&self, name: &str) -> crate::error::Result<T> {
-        let var = com_util::call_method(&self.dispatch, name)?;
-        T::from_variant(&var)
+        self.obj.call(name)
     }
 
     /// 인자 있는 메서드 호출
@@ -96,7 +101,6 @@ impl HwpObject {
         name: &str,
         args: Vec<VARIANT>,
     ) -> crate::error::Result<T> {
-        let var = com_util::call_method_with(&self.dispatch, name, args)?;
-        T::from_variant(&var)
+        self.obj.call_with(name, args)
     }
 }

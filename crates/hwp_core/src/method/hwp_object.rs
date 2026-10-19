@@ -612,7 +612,7 @@ impl HwpObject {
     /// 반환: `(GetTextStatus, 텍스트)`
     pub fn get_text(&self) -> crate::error::Result<(GetTextStatus, String)> {
         let (result_var, text) =
-            com_util::call_method_with_bstr_out(&self.dispatch, "GetText", vec![])?;
+            com_util::call_method_with_bstr_out(self.as_dispatch(), "GetText", vec![])?;
         let code = i32::from_variant(&result_var)?;
         let status = GetTextStatus::from_i32(code);
         tracing::trace!(code, ?status, len = text.len(), "GetText");
@@ -657,7 +657,7 @@ impl HwpObject {
             vec![v_list, v_para, v_pos]
         };
 
-        let _ = com_util::call_method_with(&self.dispatch, "GetPos", args)?;
+        let _ = com_util::call_method_with(self.as_dispatch(), "GetPos", args)?;
         Ok((list, para, pos))
     }
 
@@ -757,7 +757,7 @@ impl HwpObject {
         };
 
         // com_util::call_method_with를 통해 호출
-        let res_var = com_util::call_method_with(&self.dispatch, "KeyIndicator", args)?;
+        let res_var = com_util::call_method_with(self.as_dispatch(), "KeyIndicator", args)?;
         let success = bool::from_variant(&res_var)?;
 
         ensure(success, || "KeyIndicator()".to_string())?;
