@@ -116,7 +116,7 @@ hwp_core (lib.rs)
 
 ```
 HwpObject
-├── dispatch: IDispatch       (pub(crate))
+├── obj: DispObj              (private. 범용 get/call/call_with는 여기에 위임)
 └── ver: HwpVer               (private)
 
 Methods (hwp_obj.rs):
@@ -203,7 +203,7 @@ type Result<T> = std::result::Result<T, HwpError>
 일반 `IDispatch` 래퍼. `hwp_com_type!` 매크로로 생성되는 타입들의 기반.
 
 ```
-struct DispObj(pub(crate) IDispatch)
+#[derive(Clone)] struct DispObj(pub(crate) IDispatch)
 
 Methods:
   get<T: FromVariant>(name: &str) -> Result<T>
