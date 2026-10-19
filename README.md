@@ -216,17 +216,20 @@ hwp.init_scan(mask::NORMAL, ScanRange::within_selection(), 0, 0, 0, 0)?;
 hwp.windows()?.active()?.set_visible(true)?;
 ```
 
-**Action** — `ActionTable` 문서의 Action ID. `hwp.act()` 뒤에 있습니다.
+**Action** — `ActionTable` 문서의 Action ID. `hwp.h_action()?`으로 얻는 `HAction`의 메서드입니다.
 
 ```rust
-hwp.act().undo()?;              // Action ID "Undo"
-hwp.act().char_shape_bold()?;   // Action ID "CharShapeBold"
+hwp.h_action()?.undo()?;            // Action ID "Undo"
+
+let action = hwp.h_action()?;       // 여러 Action은 HAction을 한 번만 얻어서
+action.char_shape_bold()?;          // Action ID "CharShapeBold"
+action.char_shape_italic()?;        // Action ID "CharShapeItalic"
 ```
 
 래퍼가 아직 없는 것은 이름으로 직접 호출할 수 있습니다.
 
 ```rust
-hwp.act().run("FileNew")?;                            // 래퍼가 없는 Action
+hwp.h_action()?.run("FileNew")?;                      // 래퍼가 없는 Action
 let n: i32 = hwp.get("PageCount")?;                   // 래퍼가 없는 property
 let ok: bool = hwp.call_with("Open", vec![/* .. */])?; // 래퍼가 없는 method
 ```
@@ -272,13 +275,28 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 | `HwpVer` | 버전 열거형 (`V2018`, `V2022`, `V2024`, `Other`) |
 | `DispObj` | 일반 `IDispatch` 래퍼 (`hwp_com_type!` 매크로로 확장) |
 | `ScanRange` | `InitScan` 범위 파라미터 (`ScanSpos` + `ScanEpos` 비트 필드) |
-| `HAction` | 액션 실행기 (`run`, `execute`, `get_default`, `popup_dialog`) |
-| `Act` | Action 래퍼 핸들 (`hwp.act()`) |
+| `HAction` | 액션 실행기 (`run`, `execute`, `get_default`, `popup_dialog`)와 Action ID별 래퍼 (`hwp.h_action()?`) |
 | `HwpExt` | 편의 API trait |
 
 ---
 
 ## Breaking changes
+
+### 다음 버전 (미배포)
+
+**Action 래퍼가 `HAction`으로 옮겨졌습니다.** `HwpObject::act()`와 `Act` 타입이 없어졌습니다.
+
+```rust
+// 0.3.0
+hwp.act().undo()?;
+hwp.act().run("FileNew")?;
+
+// 다음 버전
+hwp.h_action()?.undo()?;
+hwp.h_action()?.run("FileNew")?;
+```
+
+여러 Action을 이어서 실행할 때는 `let action = hwp.h_action()?;`로 한 번 얻어 두고 `action.undo()?` 처럼 부르면 Action마다 `HAction`을 다시 얻지 않습니다.
 
 ### 0.3.0
 

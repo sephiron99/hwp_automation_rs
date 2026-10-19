@@ -9,7 +9,7 @@
 - **Rust 쪽**: `crates/hwp_core/src/`의 `method/`(SDK method 층)와 `pset/`에서 해당 interface에 대응하는 타입의 `impl` 블록이
   그 COM 멤버 이름을 실제로 호출하면 "binding 있음"으로 보았다. `HwpObject::call_with("Name", ..)` 같은
   범용 문자열 호출로만 쓸 수 있는 것은 "binding 없음"이다.
-- `actions/*.rs`의 Action 래퍼(`hwp.act()`, `Run("ActionId")` 기반)와 `ext/`의 편의 API는 IDL method가 아니므로 여기서 다루지 않는다. Action 쪽 계획은 `plan.md` 참고.
+- `actions/*.rs`의 Action 래퍼(`hwp.h_action()?.undo()` 등, `HAction.Run("ActionId")` 기반)와 `ext/`의 편의 API는 IDL method가 아니므로 여기서 다루지 않는다. Action 쪽 계획은 `plan.md` 참고.
 - `HwpCtrl.tlb.IDL`(HwpCtrl ActiveX)과 ParameterSet interface(`HCharShape` 등 — method 없이 property만 있음)는 제외했다.
 - `※` 표시는 IDL에는 있지만 `HwpAutomation_2504.pdf` 본문에서 이름이 검색되지 않는 method다(문서화 안 됨, 동작은 실환경 확인 필요).
 - 시그니처 표기: `[in]` 인자는 `이름: 타입`, `[out]` 인자는 `out 이름: 타입`, `[optional]`은 `[이름: 타입]`, `[out, retval]`은 `-> 타입`.

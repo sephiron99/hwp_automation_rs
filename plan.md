@@ -23,8 +23,8 @@ Dummy Action, HwpCtrl 전용 Action, 외부에 ParameterSet이 노출되지 않�
 
 - 현재 `crates/hwp_core/src/actions/`에는 15개 도메인 파일이 있고,
   `HAction::run("...")` 기준 고유 Action ID는 약 530개다.
-- 공개 Action 메서드는 `hwp.act()`가 돌려주는 `Act` 핸들에 있고, 모두
-  `self.0.h_action()?.run("ActionId")`만 호출한다.
+- 공개 Action 메서드는 `hwp.h_action()?`이 돌려주는 `HAction`의 메서드이고(`actions/*.rs`의
+  `impl HAction` 블록), 모두 `self.run("ActionId")`만 호출한다.
 - `actions/move_.rs`에는 `MoveWordBegin` 하나만 있다. 나머지 이동/선택 Action은 아직 없다.
 - `hwp_core`는 `pset ← method ← actions ← ext` 4층으로 나뉜다(`hwp_core.md` 참고). 이 계획의
   Action 래퍼는 `actions`, ParameterSet 타입은 `pset`, 조합형 편의 메서드는 `ext`에 둔다.

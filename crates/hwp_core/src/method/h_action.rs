@@ -11,6 +11,10 @@ use crate::variant::IntoVariant;
 hwp_com_type!(
     /// SDK `HAction` 대응 — 한/글에서 특정 기능을 수행하기 위한 액션 오브젝트.
     ///
+    /// [`HwpObject::h_action`](crate::HwpObject::h_action)으로 얻는다. SDK method 4개(`run`,
+    /// `get_default`, `execute`, `popup_dialog`) 말고도, Action ID별 래퍼(`undo`, `copy` 등)가
+    /// [`actions`](crate::actions) 모듈의 `impl HAction` 블록에 정의돼 있다.
+    ///
     /// SDK 참고: HwpAutomation_2504.pdf § HAction
     HAction
 );

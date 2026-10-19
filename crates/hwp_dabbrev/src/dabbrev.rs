@@ -199,7 +199,7 @@ impl DabbrevPlugin {
         // 후보를 바꿀 때마다 직전 삽입을 되돌려 undo 항목을 하나로 유지한다.
         let replace_hwp = hwp.clone();
         let replace_cb = move |word: &str| {
-            let _ = replace_hwp.act().undo();
+            let _ = replace_hwp.h_action().and_then(|a| a.undo());
             let _ = insert_candidate(&replace_hwp, prefix.as_deref(), word);
         };
 
@@ -215,7 +215,7 @@ impl DabbrevPlugin {
             ui_popup::Outcome::Cancelled => {
                 tracing::debug!("popup cancelled");
                 // prefix 모드 → 원래 prefix, next-word → 공백 뒤 원상태.
-                let _ = hwp.act().undo();
+                let _ = hwp.h_action().and_then(|a| a.undo());
             }
         }
         Ok(())

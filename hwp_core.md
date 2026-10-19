@@ -19,7 +19,7 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 | 기반 | `error`, `hwp_ver`, `variant`, `com_util`, `disp_obj`, `hwp_obj` | `HwpObject` 구조체, 범용 `get`/`call`/`call_with`, `hwp_com_type!` | — |
 | 1 | `pset` | ParameterSet 타입 | 기반 |
 | 2 | `method` | `HwpObject.tlb.IDL` interface의 method/property 1:1 binding | 기반, `pset` |
-| 3 | `actions` | ActionTable의 Action ID별 래퍼 (`Act` 핸들) | 기반, `pset`, `method` |
+| 3 | `actions` | ActionTable의 Action ID별 래퍼 (`HAction`의 메서드) | 기반, `pset`, `method` |
 | 4 | `ext` | 편의 API (`HwpExt` trait) | 아래 층의 공개 API만 |
 
 ### 어느 층에 둘 것인가
@@ -85,7 +85,7 @@ hwp_core (lib.rs)
 │   └── xhwp       - IXHwp* 하위 객체 (문서·창·툴바)
 │
 │  ── 3. Action ──
-├── actions        - Act 핸들 (hwp.act()) + 도메인별 래퍼
+├── actions        - 도메인별 Action 래퍼 (impl HAction 블록, hwp.h_action()?.undo())
 │   ├── app        - 앱/파일/인쇄/프레젠테이션/버전
 │   ├── edit       - 편집/클립보드/선택/실행취소
 │   ├── find       - 찾기/바꾸기
@@ -144,9 +144,6 @@ Methods (hwp_obj.rs):
   select_text(spara, spos, epara, epos) -> Result<()>
   key_indicator() -> Result<KeyIndicatorInfo>
   move_pos(to: MovePos) -> Result<()>
-
-+ actions/mod.rs impl:
-  act() -> Act<'_>            (Action 래퍼 핸들: hwp.act().undo()?, hwp.act().run("ActionId")?)
 
 + ext::HwpExt trait (use hwp_core::ext::HwpExt 또는 hwp_com::HwpExt / hwp_addon::HwpExt 필요):
   insert_text(text: &str) -> Result<()>
@@ -355,9 +352,9 @@ mod mask  { NORMAL=0x00, CHAR=0x01, INLINE=0x02, CTRL=0x04 }
 
 ## Action 래퍼 요약
 
-모두 `impl Act<'_>` 블록에 있고, `hwp.act()`로 얻은 핸들에서 호출한다.
-본문은 전부 `self.0.h_action()?.run("ActionId")` 한 형태다.
-전용 래퍼가 없는 Action은 `hwp.act().run("ActionId")`로 실행한다.
+모두 `actions/*.rs`의 `impl HAction` 블록에 있고, `hwp.h_action()?`으로 얻은 `HAction`에서 호출한다.
+본문은 전부 `self.run("ActionId")` 한 형태다.
+전용 래퍼가 없는 Action은 `hwp.h_action()?.run("ActionId")`로 실행한다.
 
 | 모듈 | 파일 | 메서드 수 |
 |------|------|---------|
@@ -402,7 +399,7 @@ windows     = "0.62.2"    # Windows COM API 바인딩
 | Newtype macro | `disp_obj.rs` | `hwp_com_type!`으로 IDispatch 래핑 + Deref + 변환 트레이트 자동 생성 |
 | Trait 기반 변환 | `variant.rs` | `FromVariant`/`IntoVariant`로 Rust 타입 ↔ VARIANT 변환 일반화 |
 | Extension impl | `method/*` | `HwpObject`에 파일별 메서드 블록 분리 추가 |
-| 핸들 타입 | `actions/*` | `Act<'_>`에 Action 래퍼를 모아 `HwpObject` 네임스페이스와 분리 |
+| 하위 객체 impl 분리 | `actions/*` | method 층의 `HAction`에 도메인별 `impl` 블록으로 Action 래퍼를 붙여 `HwpObject` 네임스페이스와 분리 |
 | Extension trait | `ext` | `HwpExt`로 편의 API를 SDK binding과 분리 |
 | 타입 안전 파라미터 | `method/hwp_object.rs`, `method/movepos.rs` | `ScanRange`, `ScanSpos`, `ScanEpos` 열거형으로 비트 필드 캡슐화 |
 

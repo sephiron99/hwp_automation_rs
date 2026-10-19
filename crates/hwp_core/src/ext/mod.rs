@@ -139,7 +139,7 @@ impl HwpExt for HwpObject {
 
         // 책갈피는 HWPML을 얻지 못했어도 되돌린다.
         let marked = self.get_text_file(GetTextFileFormat::HwpMl2X, false);
-        self.act().undo()?;
+        action.undo()?;
         let marked = marked?;
         let hwpml = self.get_text_file(GetTextFileFormat::HwpMl2X, false)?;
 
