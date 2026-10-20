@@ -47,7 +47,7 @@ fn extract_words(text: &str) -> impl Iterator<Item = &str> {
 }
 
 pub(crate) fn is_word_char(c: char) -> bool {
-    c.is_alphanumeric() || c == '_' || c == '-' || c == ':'
+    c.is_alphanumeric() || c == '_' || c == '-' || c == ':' || c == '\u{00B7}'
 }
 
 /// 단어/prefix는 영숫자에서 시작한다. 앞에 붙은 비단어 문자(연결용 구두점
