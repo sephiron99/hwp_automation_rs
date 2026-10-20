@@ -4,7 +4,7 @@ use crate::method::h_action::HAction;
 ///
 /// SDK 참고: ActionTable_2504.pdf § Insert*, NewNumber*, OleCreateNew, VerticalText 등
 ///
-/// `InsertText`는 [`HwpExt::insert_text`](crate::ext::HwpExt::insert_text)를 사용하십시오.
+/// `InsertText`는 [`ExtText::insert`](crate::ext::ExtText::insert)를 사용하십시오.
 impl HAction {
     // ── 각주·미주 ──
 

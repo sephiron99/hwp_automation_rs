@@ -22,8 +22,6 @@ pub use hwp_core::HwpObject;
 #[doc(no_inline)]
 pub use hwp_core::error::{HwpError, Result};
 #[doc(no_inline)]
-pub use hwp_core::ext::HwpExt;
-#[doc(no_inline)]
 pub use hwp_core::hwp_ver::HwpVer;
 #[doc(no_inline)]
 pub use hwp_core::{actions, error, ext, hwp_ver, method, pset, variant};

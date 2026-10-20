@@ -80,7 +80,7 @@ SDK `HwpAutomation_2504.pdf`의 인쇄 쪽수 22쪽은 `scanEposCurrent`를 캐�
 
 `ReleaseScan()` 의무 자체는 SDK에 명시돼 있다. 이 프로젝트의 구현상 교훈은 정상 종료뿐 아니라 중간 `break`, 오류, 이터레이터 폐기에서도 해제되도록 `Drop`에 넣는 것이다. 다만 `read_caret_context()`의 수동 스캔 루프에는 같은 RAII 처리가 적용돼 있지 않으므로 모든 스캔 경로가 동일하게 보호된다고 보면 안 된다.
 
-근거: [text_extract.rs](crates/hwp_addon/src/text_extract.rs)의 `TextWalker::next`, `Pending::ParaBreakDeferred`, `Drop`.
+근거: [ext/text.rs](crates/hwp_core/src/ext/text.rs)의 `TextWalker::next`, `Pending::ParaBreakDeferred`, `Drop`.
 
 ## 4. 자동완성 미리보기는 Undo 이력을 별도로 설계해야 한다
 
@@ -259,7 +259,7 @@ WSL 빌드에서는 Rust 컴파일과 Windows 링커 실행을 구분한다. 링
 
 **관찰 기록.** 책갈피는 `<TEXT>` 안에 `<BOOKMARK Name="처음"/>` 형태로 나온다. 본문 문단뿐 아니라 표 셀 안에서도 넣은 자리 그대로 나오며, 글자 사이에 넣으면 `<CHAR> 임</CHAR><BOOKMARK Name="다음"/><CHAR> 병 직</CHAR>`처럼 `CHAR`가 둘로 나뉜다.
 
-**구현 선택.** `HwpExt::hwpml_with_caret`은 커서 자리에 `__hwp_core_caret__`이라는 이름의 책갈피를 `Bookmark` Action으로 넣고, HWPML을 받은 뒤 `Undo`로 책갈피를 되돌린다. 그 뒤 HWPML을 한 번 더 받아 그대로 반환하고, 책갈피가 든 HWPML과 `BODY`부터 비교해 책갈피 앞까지 같은 만큼을 커서의 바이트 위치로 돌려준다. 책갈피가 든 HWPML에서 `BOOKMARK`만 빼는 방식은 쓰지 않는다. 아래 관찰처럼 책갈피가 주변 표기를 바꾸기 때문이다.
+**구현 선택.** `ExtDoc::hwpml_with_caret`은 커서 자리에 `__hwp_core_caret__`이라는 이름의 책갈피를 `Bookmark` Action으로 넣고, HWPML을 받은 뒤 `Undo`로 책갈피를 되돌린다. 그 뒤 HWPML을 한 번 더 받아 그대로 반환하고, 책갈피가 든 HWPML과 `BODY`부터 비교해 책갈피 앞까지 같은 만큼을 커서의 바이트 위치로 돌려준다. 책갈피가 든 HWPML에서 `BOOKMARK`만 빼는 방식은 쓰지 않는다. 아래 관찰처럼 책갈피가 주변 표기를 바꾸기 때문이다.
 
 **관찰 기록.** 2026-10-14에 사용자가 `test_hwpml_caret` 애드온으로 본문 문단 중간(`GetPos` = `(0, 16, 154)`)에서 실행했다. `Bookmark` Action은 `HAction.Execute`로 실행됐고, 호출 전후의 `GetPos` 값이 같았으며, 호출 후 `GetTextFile("HWPML2X")` 출력이 호출 전과 같았다. 즉 이 위치에서는 `Undo` 한 번으로 문서와 커서가 원래대로 돌아왔다.
 

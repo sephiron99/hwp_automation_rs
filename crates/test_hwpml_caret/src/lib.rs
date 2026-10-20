@@ -1,11 +1,11 @@
-//! `HwpExt::hwpml_with_caret` 실환경 검증용 애드온 DLL
+//! `ExtDoc::hwpml_with_caret` 실환경 검증용 애드온 DLL
 //!
 //! 툴바의 "HWPML 커서" 버튼을 누르면 현재 커서 자리에서 `hwpml_with_caret`을 실행하고
 //! 결과를 복사할 수 있는 창으로 보여 준다. 확인하는 것은 `hwp_실전_노트.md` 11절의 미확인 가정이다.
 use hwp_addon::debug::msgbox_err;
 use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::method::hwp_object::GetTextFileFormat;
-use hwp_addon::{HwpExt, HwpObject, export_hwp_addon};
+use hwp_addon::{HwpObject, export_hwp_addon};
 
 mod result_window;
 
@@ -68,7 +68,7 @@ fn report(hwp: &HwpObject) -> hwp_addon::Result<String> {
     let pos_before = hwp.get_pos()?;
     let hwpml_before = hwp.get_text_file(GetTextFileFormat::HwpMl2X, false)?;
 
-    let doc = hwp.hwpml_with_caret()?;
+    let doc = hwp.ext_doc().hwpml_with_caret()?;
 
     let pos_after = hwp.get_pos()?;
     let hwpml_after = hwp.get_text_file(GetTextFileFormat::HwpMl2X, false)?;

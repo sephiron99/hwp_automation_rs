@@ -1,6 +1,6 @@
 /// HWPML 문서와 그 안에서의 커서 위치
 ///
-/// [`HwpExt::hwpml_with_caret`](super::HwpExt::hwpml_with_caret)가 반환합니다.
+/// [`ExtDoc::hwpml_with_caret`](super::ExtDoc::hwpml_with_caret)가 반환합니다.
 #[derive(Debug, Clone, Default)]
 pub struct HwpmlCaret {
     /// 현재 문서의 HWPML2X 문자열. `GetTextFile("HWPML2X")`이 돌려주는 그대로다.

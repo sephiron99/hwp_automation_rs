@@ -1,6 +1,5 @@
 use hwp_addon::debug::msgbox_err;
 use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
-use hwp_addon::text_extract::HwpTextExt;
 use hwp_addon::{HwpObject, export_hwp_addon};
 
 const TOOLBAR_DATA: &[u8] = include_bytes!("../toolbar.bmp");
@@ -54,9 +53,9 @@ impl HwpUserAction for HelloWorldPlugin {
                 insert_text.set_text("Hello World! Rust 애드온에서 삽입된 텍스트입니다.")?;
                 action.execute("InsertText", &hset)?;
 
-                insert_text.set_text(hwp.get_all_text().unwrap().as_str())?;
+                insert_text.set_text(hwp.ext_text().all().unwrap().as_str())?;
                 action.execute("InsertText", &hset)?;
-                // let _ = dbg!(hwp.get_all_text());
+                // let _ = dbg!(hwp.ext_text().all());
 
                 // hwp.move_pos(hwp_addon::method::movepos::MovePos::StartOfPara)?;
                 // must return Err

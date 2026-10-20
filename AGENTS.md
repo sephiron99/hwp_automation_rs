@@ -38,7 +38,7 @@ Two modes of interacting with HWP:
 - **`hwp_addon`** — add-on framework, `HwpUserAction` trait, `#[repr(C)]` vtable structs
 - **`hello_hwp_ole`** (pkg: `hello_hwp_com`) — example binary using OLE client approach
 - **`hello_hwp_dll`** — example add-on DLL using `hwp_addon` framework
-- **`test_hwpml_caret`** — add-on DLL for verifying `HwpExt::hwpml_with_caret` in a real HWP
+- **`test_hwpml_caret`** — add-on DLL for verifying `ExtDoc::hwpml_with_caret` in a real HWP
 - **`hwp_dabbrev`** — hwp dynamic abbreviation addon like emacs's dabbrev.
   Sample project.
 
@@ -49,7 +49,7 @@ Two modes of interacting with HWP:
 | 1 | `pset` | ParameterSet 타입 (`HParameterSet`, `HCharShape` 등) | 타입으로만 등장 |
 | 2 | `method` | `HwpObject.tlb.IDL`의 method/property 1:1 binding | `hwp.get_pos()` |
 | 3 | `actions` | ActionTable의 Action ID별 래퍼 (`HAction`의 메서드) | `hwp.h_action()?.undo()` |
-| 4 | `ext` | 편의 API (`HwpExt` trait) | `use hwp_core::ext::HwpExt; hwp.insert_text(..)` |
+| 4 | `ext` | 편의 API (`ext_` 접두어 핸들) | `hwp.ext_text().insert(..)` |
 
 - 1~3층은 호출 하나에 COM 호출 하나를 대응시키고, 실패는 공통 에러 `HwpError`로 돌려준다. SDK가 성공 여부를 `BOOL`로 돌려주면 `false`를 `HwpError::ExecutionFailed`로 바꾼다. `BOOL`이 질문의 답이면 `Result<bool>`로 둔다. 에러를 삼키거나 기본값으로 대체하지 않는다(그런 처리는 `ext`). 인자를 enum으로 감싸는 것은 허용.
 - 호출을 둘 이상 묶거나, 기본값을 정하거나, 에러를 삼키는 코드는 `ext`에 둔다. `ext`는 아래 층의 공개 API만 쓴다.

@@ -9,7 +9,6 @@ pub mod keyfwd;
 pub mod logging;
 pub mod shortcut;
 pub mod text_edit;
-pub mod text_extract;
 pub mod toolbar;
 
 // `hwp_core`에 따로 의존하지 않아도 되도록 사용자에게 필요한 타입과 층 모듈을 re-export한다.
@@ -19,8 +18,6 @@ pub mod toolbar;
 pub use hwp_core::HwpObject;
 #[doc(no_inline)]
 pub use hwp_core::error::{HwpError, Result};
-#[doc(no_inline)]
-pub use hwp_core::ext::HwpExt;
 #[doc(no_inline)]
 pub use hwp_core::hwp_ver::HwpVer;
 #[doc(no_inline)]

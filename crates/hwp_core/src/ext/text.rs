@@ -1,9 +1,11 @@
-//! 문서 전체 텍스트(컨트롤 포함) 추출용 lending-free iterator.
+//! 텍스트 편의 API — [`HwpObject::ext_text`]
 //!
-//! `InitScan` / `GetText` / `ReleaseScan` 시퀀스를 표준 [`Iterator`]와 RAII
-//! guard로 감싼다. 호출자는 [`HwpTextExt::text_segments`]로 [`TextWalker`]를
-//! 얻어 `for seg in walker { ... }` 형태로 순회하면 된다. walker가 Drop될
-//! 때 자동으로 `ReleaseScan`이 호출된다.
+//! 텍스트 삽입과, 문서 전체 텍스트(컨트롤 포함) 순회를 제공한다.
+//!
+//! 순회는 `InitScan` / `GetText` / `ReleaseScan` 시퀀스를 표준 [`Iterator`]와 RAII
+//! guard로 감싼다. [`ExtText::segments`]로 [`TextWalker`]를 얻어
+//! `for seg in walker { ... }` 형태로 순회하면 된다. walker가 Drop될 때 자동으로
+//! `ReleaseScan`이 호출된다.
 //!
 //! 본문뿐 아니라 머리말/꼬리말/각주/표/텍스트박스 등 컨트롤 내부 텍스트도
 //! 포함되며, 컨트롤 진입/탈출은 [`TextSegment::EnterCtrl`] / [`TextSegment::ExitCtrl`]
@@ -11,11 +13,10 @@
 //!
 //! # 사용 예
 //! ```ignore
-//! use std::ops::ControlFlow;
-//! use hwp_addon::text_extract::{HwpTextExt, TextSegment};
+//! use hwp_core::ext::TextSegment;
 //!
 //! // 구조 정보가 필요한 경우 (문단/컨트롤 경계 구분)
-//! for seg in hwp.text_segments()? {
+//! for seg in hwp.ext_text().segments()? {
 //!     match seg? {
 //!         TextSegment::Text(s) => print!("{s}"),
 //!         TextSegment::ParaBreak => println!(),
@@ -25,14 +26,14 @@
 //! }
 //!
 //! // 전체를 단일 String으로 (구조 정보 무시)
-//! let full = hwp.get_all_text()?;
+//! let full = hwp.ext_text().all()?;
 //! ```
 
 use std::ops::ControlFlow;
 
-use hwp_core::error::{HwpError, Result};
-use hwp_core::hwp_obj::HwpObject;
-use hwp_core::method::hwp_object::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask};
+use crate::error::{HwpError, Result};
+use crate::hwp_obj::HwpObject;
+use crate::method::hwp_object::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask};
 
 /// 한 텍스트 추출 이벤트.
 #[derive(Debug, Clone)]
@@ -168,12 +169,44 @@ impl Drop for TextWalker<'_> {
     }
 }
 
-/// [`HwpObject`]에 컨트롤 포함 문서 전체 텍스트 추출 메서드를 추가하는 extension trait.
-pub trait HwpTextExt {
+/// 텍스트 편의 API 핸들. [`HwpObject::ext_text`]로 얻는다.
+pub struct ExtText<'a>(&'a HwpObject);
+
+impl HwpObject {
+    /// 텍스트 편의 API 핸들을 돌려줍니다. [`ExtText`] 참고.
+    pub fn ext_text(&self) -> ExtText<'_> {
+        ExtText(self)
+    }
+}
+
+impl<'h> ExtText<'h> {
+    /// 현재 커서 위치에 텍스트를 삽입합니다.
+    ///
+    /// SDK 액션 ID: `"InsertText"`, 파라미터: `HInsertText.Text`
+    pub fn insert(&self, text: &str) -> Result<()> {
+        let action = self.0.h_action()?;
+        let pset = self.0.h_parameter_set()?;
+        let insert_text = pset.h_insert_text()?;
+        let hset = insert_text.h_set()?;
+        action.get_default("InsertText", &hset)?;
+        insert_text.set_text(text)?;
+        action.execute("InsertText", &hset)?;
+        Ok(())
+    }
+
     /// 문서 전체에 대한 walker. 기본 옵션:
     /// - mask = `NORMAL | CHAR | INLINE | CTRL` (모든 컨트롤 포함)
     /// - range = `Document → Document`
-    fn text_segments(&self) -> Result<TextWalker<'_>>;
+    pub fn segments(&self) -> Result<TextWalker<'h>> {
+        self.segments_with(
+            mask::NORMAL | mask::CHAR | mask::INLINE | mask::CTRL,
+            ScanRange::new(ScanSpos::Document, ScanEpos::Document),
+            0,
+            0,
+            0,
+            0,
+        )
+    }
 
     /// 마스크/범위를 직접 지정해 walker를 만든다.
     ///
@@ -189,7 +222,7 @@ pub trait HwpTextExt {
     ///   [`ScanEpos::Specified`]일 때만 의미가 있고, 그 외에는 0.
     ///
     /// 내부적으로 [`HwpObject::init_scan`]에 그대로 전달된다.
-    fn text_segments_with(
+    pub fn segments_with(
         &self,
         option: u32,
         range: ScanRange,
@@ -197,45 +230,15 @@ pub trait HwpTextExt {
         spos: u32,
         epara: u32,
         epos: u32,
-    ) -> Result<TextWalker<'_>>;
+    ) -> Result<TextWalker<'h>> {
+        TextWalker::new(self.0, option, range, spara, spos, epara, epos)
+    }
 
     /// 전체 텍스트를 단일 `String`으로 반환한다. 컨트롤 진입/탈출 경계는
     /// 무시되고 컨트롤 내부 텍스트도 본문과 이어붙는다. 문단 경계는 `'\n'`.
-    fn get_all_text(&self) -> Result<String>;
-
-    /// closure 기반 visitor. `ControlFlow::Break(())`를 돌려주면 즉시 종료.
-    fn visit_all_text<F>(&self, f: F) -> Result<()>
-    where
-        F: FnMut(&TextSegment) -> ControlFlow<()>;
-}
-
-impl HwpTextExt for HwpObject {
-    fn text_segments(&self) -> Result<TextWalker<'_>> {
-        self.text_segments_with(
-            mask::NORMAL | mask::CHAR | mask::INLINE | mask::CTRL,
-            ScanRange::new(ScanSpos::Document, ScanEpos::Document),
-            0,
-            0,
-            0,
-            0,
-        )
-    }
-
-    fn text_segments_with(
-        &self,
-        option: u32,
-        range: ScanRange,
-        spara: u32,
-        spos: u32,
-        epara: u32,
-        epos: u32,
-    ) -> Result<TextWalker<'_>> {
-        TextWalker::new(self, option, range, spara, spos, epara, epos)
-    }
-
-    fn get_all_text(&self) -> Result<String> {
+    pub fn all(&self) -> Result<String> {
         let mut out = String::new();
-        for seg in self.text_segments()? {
+        for seg in self.segments()? {
             match seg? {
                 TextSegment::Text(s) | TextSegment::EnterCtrl(s) => out.push_str(&s),
                 TextSegment::ParaBreak => out.push('\n'),
@@ -245,11 +248,12 @@ impl HwpTextExt for HwpObject {
         Ok(out)
     }
 
-    fn visit_all_text<F>(&self, mut f: F) -> Result<()>
+    /// closure 기반 visitor. `ControlFlow::Break(())`를 돌려주면 즉시 종료.
+    pub fn visit<F>(&self, mut f: F) -> Result<()>
     where
         F: FnMut(&TextSegment) -> ControlFlow<()>,
     {
-        for seg in self.text_segments()? {
+        for seg in self.segments()? {
             let seg = seg?;
             if let ControlFlow::Break(()) = f(&seg) {
                 break;

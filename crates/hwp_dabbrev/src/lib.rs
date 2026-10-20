@@ -4,9 +4,9 @@
 // 팝업에서 확정한 단어는 선택 이력에 기록하고, 다음 액션부터 후보 앞쪽에 둔다.
 use std::cell::RefCell;
 
+use hwp_addon::ext::TextSegment;
 use hwp_addon::hwp_user_action::{ActionMeta, HwpUserAction, ToolbarConfig, ToolbarTarget};
 use hwp_addon::shortcut::{Modifiers, ShortcutKey};
-use hwp_addon::text_extract::{HwpTextExt, TextSegment};
 use hwp_addon::{HwpObject, export_hwp_addon};
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_2;
 
@@ -26,11 +26,11 @@ static CONFIG: ToolbarConfig = ToolbarConfig {
     ribbon_toolbox_index: -1,
 };
 
-/// `text_segments()`로 문서 전체를 훑어 단어 배열을 만든다. 컨트롤 진입/탈출
+/// `ext_text().segments()`로 문서 전체를 훑어 단어 배열을 만든다. 컨트롤 진입/탈출
 /// 경계는 무시하고 그 안의 텍스트도 본문과 같은 흐름으로 평탄화한다.
 fn extract_all_words(hwp: &HwpObject) -> hwp_addon::Result<Vec<String>> {
     let mut buf = String::new();
-    for seg in hwp.text_segments()? {
+    for seg in hwp.ext_text().segments()? {
         match seg? {
             TextSegment::Text(s) | TextSegment::EnterCtrl(s) => buf.push_str(&s),
             TextSegment::ParaBreak => buf.push(' '),

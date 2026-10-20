@@ -1,5 +1,3 @@
-use hwp_com::HwpExt;
-
 /// 한글 OLE 클라이언트 예제
 ///
 /// Running Object Table에서 실행 중인 한글 인스턴스를 열거하고
@@ -19,7 +17,7 @@ fn main() -> hwp_com::Result<()> {
 /// 해당 창에 자신의 인덱스를 텍스트로 삽입합니다.
 ///
 /// `XHwpDocuments.Item(i)` (0-based)로 각 문서를 얻어 `SetActive_XHwpDocument`로
-/// 활성화한 뒤, `HwpObject.insert_text("Window <i>")`를 호출합니다.
+/// 활성화한 뒤, `hwp.ext_text().insert("Window <i>")`를 호출합니다.
 fn label_all_windows() -> hwp_com::Result<()> {
     let instances = hwp_com::HwpClient::list_running()?;
     for (_moniker, hwp) in &instances {
@@ -33,7 +31,7 @@ fn label_all_windows() -> hwp_com::Result<()> {
             if doc.set_active().is_err() {
                 continue;
             }
-            let _ = hwp.insert_text(&format!("Hello Hwp, Window {i}"));
+            let _ = hwp.ext_text().insert(&format!("Hello Hwp, Window {i}"));
         }
     }
     Ok(())

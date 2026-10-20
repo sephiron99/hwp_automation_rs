@@ -59,7 +59,7 @@ hwp_core  ←──  hwp_com    ←──  hello_hwp_ole  (OLE 예제 바이너�
                           ←──  hwp_dabbrev    (dabbrev 애드온)
 ```
 
-사용자는 `hwp_com`이나 `hwp_addon` 하나만 의존하면 됩니다. 두 크레이트가 `HwpObject`, `HwpError`, `Result`, `HwpExt`, `HwpVer`와 `hwp_core`의 `method`, `pset`, `actions`, `ext`, `variant`, `error`, `hwp_ver` 모듈을 같은 이름으로 다시 내보내므로, `hwp_core::method::…`는 `hwp_com::method::…`나 `hwp_addon::method::…`로 쓰면 됩니다. `hwp_core`에 직접 의존해도 같은 타입이라 섞어 써도 됩니다.
+사용자는 `hwp_com`이나 `hwp_addon` 하나만 의존하면 됩니다. 두 크레이트가 `HwpObject`, `HwpError`, `Result`, `HwpVer`와 `hwp_core`의 `method`, `pset`, `actions`, `ext`, `variant`, `error`, `hwp_ver` 모듈을 같은 이름으로 다시 내보내므로, `hwp_core::method::…`는 `hwp_com::method::…`나 `hwp_addon::method::…`로 쓰면 됩니다. `hwp_core`에 직접 의존해도 같은 타입이라 섞어 써도 됩니다.
 
 ---
 
@@ -89,7 +89,7 @@ wsl2-msvc 링크 스크립트가 유용합니다. 저장소 설정은 링커를 
 외부 프로세스에서 실행 중인 한글을 제어합니다.
 
 ```rust
-use hwp_com::{HwpClient, HwpExt};
+use hwp_com::HwpClient;
 
 fn main() -> hwp_com::Result<()> {
     // 새 한글 인스턴스 시작
@@ -100,7 +100,7 @@ fn main() -> hwp_com::Result<()> {
     let instances = HwpClient::list_running()?;
     for (_moniker, hwp) in &instances {
         println!("버전: {}", hwp.version().display_name());
-        hwp.insert_text("Hello from Rust!")?;
+        hwp.ext_text().insert("Hello from Rust!")?;
     }
     Ok(())
 }
@@ -123,7 +123,7 @@ HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
 한글이 DLL을 로드하여 내부에서 직접 실행합니다.
 
 ```rust
-use hwp_addon::{HwpExt, HwpObject, export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
+use hwp_addon::{HwpObject, export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
 
 pub struct MyPlugin;
 
@@ -140,7 +140,7 @@ impl HwpUserAction for MyPlugin {
 
     fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_addon::Result<bool> {
         if action_name == "MyAction" {
-            hwp.insert_text("Rust 애드온에서 삽입!")?;
+            hwp.ext_text().insert("Rust 애드온에서 삽입!")?;
             return Ok(true);
         }
         Ok(false)
@@ -185,21 +185,26 @@ OLE 클라이언트든 애드온이든 `HwpObject`를 얻은 뒤의 사용법은
 
 ### 1. 편의 API
 
-자주 쓰는 작업을 한 번의 호출로 묶어 둔 것입니다. `HwpExt` trait을 가져오면 쓸 수 있습니다.
+자주 쓰는 작업을 한 번의 호출로 묶어 둔 것입니다. SDK를 그대로 옮긴 메서드와 구분되도록 `ext_` 접두어가 붙은 핸들을 거쳐 부르며, 따로 가져올(`use`) 것은 없습니다.
+
+| 핸들 | 내용 |
+|---|---|
+| `hwp.ext_text()` | 텍스트 삽입(`insert`), 문서 텍스트 순회(`segments`, `segments_with`, `all`, `visit`) |
+| `hwp.ext_shape()` | 커서 위치의 글자·문단 모양(`current_char`, `current_para`) |
+| `hwp.ext_doc()` | HWPX 저장(`save_as_hwpx`), 커서 위치가 표시된 HWPML(`hwpml_with_caret`) |
 
 ```rust
-use hwp_com::HwpExt;   // 애드온은 hwp_addon::HwpExt
-
-hwp.insert_text("텍스트")?;              // 커서 위치에 텍스트 삽입
-hwp.save_as_hwpx("C:\\out.hwpx")?;       // HWPX로 저장
-let shape = hwp.current_char_shape()?;  // 커서 위치의 글자 모양
-let doc = hwp.hwpml_with_caret()?;      // 문서의 HWPML과 그 안의 커서 위치
+hwp.ext_text().insert("텍스트")?;               // 커서 위치에 텍스트 삽입
+let all = hwp.ext_text().all()?;                // 문서 전체 텍스트(컨트롤 안 포함)
+let shape = hwp.ext_shape().current_char()?;    // 커서 위치의 글자 모양
+hwp.ext_doc().save_as_hwpx("C:\\out.hwpx")?;    // HWPX로 저장
+let doc = hwp.ext_doc().hwpml_with_caret()?;    // 문서의 HWPML과 그 안의 커서 위치
 let (before, after) = doc.hwpml.split_at(doc.offset);
 ```
 
 `hwpml_with_caret`은 커서 자리에 책갈피를 잠깐 넣어 `GetTextFile("HWPML2X")` 출력에서 그 자리를 찾고, 실행 취소(Undo)로 책갈피를 되돌린 뒤의 HWPML을 돌려줍니다. `GetPos` 값과 HWPML의 `CARETPOS`는 리스트·문단·글자 번호일 뿐이고, HWPML 본문 요소에는 그 번호에 대응하는 속성이 없어 커서가 HWPML의 어디인지 알 수 없기 때문입니다. 문서를 잠깐 수정하므로 수정 상태와 다시 실행(Redo) 기록이 바뀌고, `GetTextFile`을 두 번 부르므로 큰 문서에서는 느립니다. 선택 블록이 있으면 선택 방향과 상관없이 블록의 앞쪽 끝을 돌려주고, 호출 뒤에는 선택이 풀리며 커서가 블록의 뒤쪽 끝으로 갑니다.
 
-애드온에서는 `hwp_addon`의 `HwpTextExt`(문서 텍스트 순회), `HwpEditExt`(커서 앞 문자 교체)도 같은 방식으로 씁니다.
+애드온에서는 `hwp_addon::text_edit::HwpEditExt`(커서 앞 문자 교체)도 쓸 수 있습니다. IME 조합 처리와 엮여 있어 애드온 크레이트에 있고, trait이라 `use`가 필요합니다.
 
 ### 2. SDK 직접 사용
 
@@ -266,7 +271,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 
 ## `hwp_core` 핵심 타입
 
-`HwpObject`, `HwpError`, `HwpVer`, `HwpExt`는 `hwp_com`, `hwp_addon` 루트에서도 같은 이름으로 쓸 수 있습니다. 자세한 내용은 [`hwp_core.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_core.md)를 참고하세요.
+`HwpObject`, `HwpError`, `HwpVer`는 `hwp_com`, `hwp_addon` 루트에서도 같은 이름으로 쓸 수 있습니다. 자세한 내용은 [`hwp_core.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_core.md)를 참고하세요.
 
 | 타입 | 설명 |
 |------|------|
@@ -276,7 +281,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 | `DispObj` | 일반 `IDispatch` 래퍼 (`hwp_com_type!` 매크로로 확장) |
 | `ScanRange` | `InitScan` 범위 파라미터 (`ScanSpos` + `ScanEpos` 비트 필드) |
 | `HAction` | 액션 실행기 (`run`, `execute`, `get_default`, `popup_dialog`)와 Action ID별 래퍼 (`hwp.h_action()?`) |
-| `HwpExt` | 편의 API trait |
+| `ExtText`, `ExtShape`, `ExtDoc` | 편의 API 핸들 (`hwp.ext_text()`, `hwp.ext_shape()`, `hwp.ext_doc()`) |
 
 ---
 
@@ -297,6 +302,21 @@ hwp.h_action()?.run("FileNew")?;
 ```
 
 여러 Action을 이어서 실행할 때는 `let action = hwp.h_action()?;`로 한 번 얻어 두고 `action.undo()?` 처럼 부르면 Action마다 `HAction`을 다시 얻지 않습니다.
+
+**편의 API가 `ext_` 핸들로 옮겨졌습니다.** `HwpExt` trait과 `hwp_com::HwpExt`, `hwp_addon::HwpExt` 재내보내기가 없어졌고, `hwp_addon::text_extract`(`HwpTextExt`, `TextWalker`, `TextSegment`)는 `hwp_core::ext`로 옮겨져 OLE 클라이언트에서도 쓸 수 있습니다.
+
+| 0.3.0 | 다음 버전 |
+|---|---|
+| `hwp.insert_text(t)` | `hwp.ext_text().insert(t)` |
+| `hwp.text_segments()` / `text_segments_with(..)` | `hwp.ext_text().segments()` / `segments_with(..)` |
+| `hwp.get_all_text()` | `hwp.ext_text().all()` |
+| `hwp.visit_all_text(f)` | `hwp.ext_text().visit(f)` |
+| `hwp.current_char_shape()` / `current_para_shape()` | `hwp.ext_shape().current_char()` / `current_para()` |
+| `hwp.save_as_hwpx(p)` | `hwp.ext_doc().save_as_hwpx(p)` |
+| `hwp.hwpml_with_caret()` | `hwp.ext_doc().hwpml_with_caret()` |
+| `hwp_addon::text_extract::TextSegment` | `hwp_core::ext::TextSegment` (`hwp_addon::ext::TextSegment`) |
+
+`use …::HwpExt;`와 `use hwp_addon::text_extract::HwpTextExt;`는 지우면 됩니다.
 
 ### 0.3.0
 

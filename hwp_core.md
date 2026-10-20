@@ -20,7 +20,7 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 | 1 | `pset` | ParameterSet 타입 | 기반 |
 | 2 | `method` | `HwpObject.tlb.IDL` interface의 method/property 1:1 binding | 기반, `pset` |
 | 3 | `actions` | ActionTable의 Action ID별 래퍼 (`HAction`의 메서드) | 기반, `pset`, `method` |
-| 4 | `ext` | 편의 API (`HwpExt` trait) | 아래 층의 공개 API만 |
+| 4 | `ext` | 편의 API (`ext_text`/`ext_shape`/`ext_doc` 핸들) | 아래 층의 공개 API만 |
 
 ### 어느 층에 둘 것인가
 
@@ -42,7 +42,7 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 
 사용자가 `hwp_core`에 따로 의존하지 않도록 `hwp_com`과 `hwp_addon`은 루트에서 같은 목록을 re-export한다.
 
-- 항목: `HwpObject`, `error::{HwpError, Result}`, `ext::HwpExt`, `hwp_ver::HwpVer`
+- 항목: `HwpObject`, `error::{HwpError, Result}`, `hwp_ver::HwpVer`
 - 모듈: `error`, `hwp_ver`, `variant`, `pset`, `method`, `actions`, `ext`
 - 제외하는 것: `com_util`, `disp_obj`, `hwp_obj` (내부용. `HwpObject`는 루트 re-export로 충분)
 - `#[doc(no_inline)]`을 붙여 문서가 복사되지 않고 `hwp_core` 링크로만 나오게 한다.
@@ -103,7 +103,11 @@ hwp_core (lib.rs)
 │   └── macro_     - 매크로/빠른 교정/빠른 책갈피
 │
 │  ── 4. 편의 API ──
-└── ext            - HwpExt trait, CharShape, ParaShape, HwpmlCaret
+└── ext            - 편의 API 핸들 (HwpObject::ext_* → Ext*)
+    ├── text       - ExtText (insert, segments, all, visit), TextWalker, TextSegment
+    ├── shape      - ExtShape (current_char, current_para)
+    ├── doc        - ExtDoc (save_as_hwpx, hwpml_with_caret)
+    └── char_shape, para_shape, hwpml_caret - 반환 타입 CharShape, ParaShape, HwpmlCaret
 ```
 
 ---
@@ -145,12 +149,10 @@ Methods (hwp_obj.rs):
   key_indicator() -> Result<KeyIndicatorInfo>
   move_pos(to: MovePos) -> Result<()>
 
-+ ext::HwpExt trait (use hwp_core::ext::HwpExt 또는 hwp_com::HwpExt / hwp_addon::HwpExt 필요):
-  insert_text(text: &str) -> Result<()>
-  save_as_hwpx(path: &str) -> Result<()>
-  current_char_shape() -> Result<CharShape>
-  current_para_shape() -> Result<ParaShape>
-  hwpml_with_caret() -> Result<HwpmlCaret>   (HWPML과 그 안의 커서 바이트 위치. 책갈피 삽입 → GetTextFile → Undo → GetTextFile)
++ ext 편의 API 핸들 (import 불필요):
+  ext_text()  -> ExtText   insert(text), segments(), segments_with(option, range, spara, spos, epara, epos), all(), visit(f)
+  ext_shape() -> ExtShape  current_char() -> CharShape, current_para() -> ParaShape
+  ext_doc()   -> ExtDoc    save_as_hwpx(path), hwpml_with_caret() -> HwpmlCaret   (HWPML과 그 안의 커서 바이트 위치. 책갈피 삽입 → GetTextFile → Undo → GetTextFile)
 ```
 
 ---
@@ -400,7 +402,7 @@ windows     = "0.62.2"    # Windows COM API 바인딩
 | Trait 기반 변환 | `variant.rs` | `FromVariant`/`IntoVariant`로 Rust 타입 ↔ VARIANT 변환 일반화 |
 | Extension impl | `method/*` | `HwpObject`에 파일별 메서드 블록 분리 추가 |
 | 하위 객체 impl 분리 | `actions/*` | method 층의 `HAction`에 도메인별 `impl` 블록으로 Action 래퍼를 붙여 `HwpObject` 네임스페이스와 분리 |
-| Extension trait | `ext` | `HwpExt`로 편의 API를 SDK binding과 분리 |
+| 접두어 핸들 | `ext` | `hwp.ext_text()` 등 `ext_` 접두어 핸들로 편의 API를 SDK binding과 호출 자리에서 구분하고, 같은 이름의 고유 메서드에 가려지지 않게 함 |
 | 타입 안전 파라미터 | `method/hwp_object.rs`, `method/movepos.rs` | `ScanRange`, `ScanSpos`, `ScanEpos` 열거형으로 비트 필드 캡슐화 |
 
 ---

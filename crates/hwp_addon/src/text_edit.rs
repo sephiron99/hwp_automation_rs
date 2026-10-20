@@ -44,7 +44,6 @@
 //! [`HAction`]: hwp_core::method::h_action::HAction
 
 use hwp_core::error::Result;
-use hwp_core::ext::HwpExt;
 use hwp_core::hwp_obj::HwpObject;
 
 /// [`HwpObject`]에 IME-safe 고수준 편집 메서드를 추가하는 extension trait.
@@ -111,7 +110,7 @@ impl HwpEditExt for HwpObject {
             // 선택할 게 없으면(문단 시작 등) 그냥 삽입한다.
             let _ = self.select_chars_before(prefix_chars)?;
         }
-        self.insert_text(replacement)
+        self.ext_text().insert(replacement)
     }
 
     fn replace_word_before(&self, prefix: &str, replacement: &str) -> Result<()> {

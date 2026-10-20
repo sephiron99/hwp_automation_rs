@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use hwp_addon::{
-    HwpExt, HwpObject,
+    HwpObject,
+    ext::TextSegment,
     method::hwp_object::{ScanRange, mask},
     text_edit::HwpEditExt,
-    text_extract::{HwpTextExt, TextSegment},
     variant::IntoVariant,
 };
 use winsafe::HWND;
@@ -40,7 +40,7 @@ fn insert_candidate(hwp: &HwpObject, prefix: Option<&str>, word: &str) -> hwp_ad
     } else {
         let (_, para, pos) = hwp.get_pos()?;
         hwp.select_text(para, pos, para, pos)?;
-        hwp.insert_text(word)
+        hwp.ext_text().insert(word)
     }
 }
 
@@ -74,9 +74,14 @@ impl DabbrevPlugin {
                 return Ok(String::new());
             }
             let mut text = String::new();
-            for segment in
-                hwp.text_segments_with(mask::NORMAL, ScanRange::within_selection(), 0, 0, 0, 0)?
-            {
+            for segment in hwp.ext_text().segments_with(
+                mask::NORMAL,
+                ScanRange::within_selection(),
+                0,
+                0,
+                0,
+                0,
+            )? {
                 match segment? {
                     TextSegment::Text(s) | TextSegment::EnterCtrl(s) => text.push_str(&s),
                     TextSegment::ParaBreak => text.push('\n'),
