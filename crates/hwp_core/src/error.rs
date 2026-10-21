@@ -12,9 +12,6 @@ pub enum HwpError {
     #[error("윈도우 COM 시스템 에러가 발생했습니다: {0}")]
     ComError(#[from] windows::core::Error),
 
-    #[error("OLE 환경을 초기화하는 데 실패했습니다. (AfxOleInit 실패)")]
-    OleInitFailed,
-
     #[error("한글(HWP) 객체를 생성할 수 없습니다. 한글이 설치되어 있는지 확인하세요.")]
     ConnectionFailed,
 

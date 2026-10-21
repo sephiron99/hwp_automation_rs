@@ -114,6 +114,8 @@ HwpClient::attach()        // 실행 중인 첫 번째 인스턴스에 연결
 HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
 ```
 
+세 함수는 그 스레드에서 처음 불릴 때 OLE를 초기화하고, 스레드가 끝날 때 해제합니다. 따로 할 일은 없습니다. 다만 얻은 `HwpObject`를 `static`이나 thread-local에 두면 OLE가 먼저 해제될 수 있으니 지역 변수로 쓰세요. 스레드가 끝나기 전에 해제하고 싶으면 `hwp_com::OleGuard`를 직접 쓰면 됩니다.
+
 `HwpObject`를 얻은 뒤의 사용법은 아래 [API 사용법](#api-사용법)을 참고하세요.
 
 ---
@@ -300,6 +302,10 @@ hwp.act().run("FileNew")?;
 hwp.h_action()?.undo()?;
 hwp.h_action()?.run("FileNew")?;
 ```
+
+**`HwpError::OleInitFailed`가 없어졌습니다.** OLE 초기화 실패는 원래 HRESULT가 담긴 `HwpError::ComError`로 옵니다(예: 이미 MTA로 초기화된 스레드의 `RPC_E_CHANGED_MODE`). 이 variant를 `match`하던 코드는 지우면 됩니다.
+
+`HwpClient` 사용법은 그대로입니다. 이전에는 `new`, `attach`, `list_running`이 부를 때마다 `OleInitialize`를 부르고 해제하지 않았는데, 이제 스레드마다 처음 한 번만 초기화하고 스레드가 끝날 때 해제합니다. 해제 시점을 직접 정하려면 새로 생긴 `hwp_com::OleGuard`를 쓰면 됩니다.
 
 여러 Action을 이어서 실행할 때는 `let action = hwp.h_action()?;`로 한 번 얻어 두고 `action.undo()?` 처럼 부르면 Action마다 `HAction`을 다시 얻지 않습니다.
 
