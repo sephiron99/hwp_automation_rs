@@ -54,6 +54,40 @@ impl XHwpDocuments {
     }
 }
 
+/// `IXHwpDocument.Modified`의 값 — 문서의 변경 상태
+///
+/// IDL에서 이 property는 `long`이다. `IXHwpDocument.Modified` 항목에는 값 설명이 없어,
+/// 같은 뜻의 `IHwpObject.IsModified` 항목에 적힌 값을 상수로 둔다.
+///
+/// SDK 참고: HwpAutomation_2504.pdf § IHwpObject `IsModified(Property)`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ModifiedState(i32);
+
+impl ModifiedState {
+    /// 변경되지 않은 깨끗한 상태 (SDK: 0)
+    pub const CLEAN: Self = Self(0);
+    /// 변경된 상태 (SDK: 1)
+    pub const MODIFIED: Self = Self(1);
+    /// 변경되었으나 자동 저장된 상태 (SDK: 2)
+    pub const AUTO_SAVED: Self = Self(2);
+
+    /// SDK의 `long` 값
+    pub const fn bits(self) -> i32 {
+        self.0
+    }
+
+    /// `long` 값을 그대로 감싼다. 정의되지 않은 값도 버리지 않는다.
+    pub const fn from_bits_retain(bits: i32) -> Self {
+        Self(bits)
+    }
+
+    /// 마지막 저장 뒤 변경됐는지. [`CLEAN`](Self::CLEAN)이 아니면 `true`다
+    /// (자동 저장만 된 상태도 변경된 것으로 본다).
+    pub const fn is_modified(self) -> bool {
+        self.0 != Self::CLEAN.0
+    }
+}
+
 /// `IXHwpDocument.EditMode`의 값 — 문서의 편집 모드
 ///
 /// 값이 비트 조합으로 올 수 있으므로 `==` 대신 [`contains`](Self::contains)로 판단한다.
@@ -131,11 +165,12 @@ impl XHwpDocument {
         self.get::<i32>("EditMode").map(EditMode::from_bits_retain)
     }
 
-    /// Document의 변경 여부를 반환합니다.
+    /// Document의 변경 상태를 반환합니다.
     ///
-    /// SDK: `Modified(Property)`
-    pub fn modified(&self) -> Result<bool> {
-        self.get("Modified")
+    /// SDK: `Modified(Property)` — [`ModifiedState`] 참고
+    pub fn modified(&self) -> Result<ModifiedState> {
+        self.get::<i32>("Modified")
+            .map(ModifiedState::from_bits_retain)
     }
 
     /// Document의 저장된 포맷을 반환합니다 (읽기 전용).
