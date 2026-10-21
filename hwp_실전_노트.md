@@ -313,6 +313,47 @@ WSL 빌드에서는 Rust 컴파일과 Windows 링커 실행을 구분한다. 링
 
 근거: [VARIANT 변환](crates/hwp_core/src/variant.rs).
 
+## 13. `SaveAs`는 `lock:false`가 없으면 열린 문서를 바꾼다
+
+이 절은 2026-10-22에 추가했다. 관찰은 한글 2018(10.0.0.14939)에서 OLE 클라이언트(`hwp_com`, 창 숨김)로 했다.
+
+**증상.** 한글 UI의 "다른 이름으로 저장"은 편집 중인 문서를 저장한 파일로 바꾼다. 커서 위치를 담은 HWPX를 임시 파일로 저장할 때(`ExtDoc::hwpx_with_caret`) 같은 일이 일어나면, 사용자가 편집 중인 문서가 임시 파일로 바뀌고 이후 저장이 임시 파일로 간다.
+
+**진단 결과.** 문서를 열고 글자를 넣은 뒤 `SaveAs(경로, "HWPX", arg)`를 부르고, 다시 글자를 넣어 `Save(true)`를 불렀다.
+
+| 연 문서 | `arg` | `SaveAs` 뒤 문서 경로·형식 | `Save`가 쓴 파일 |
+|---|---|---|---|
+| `a.hwp` | `""` | 저장한 `.hwpx`, `HWPX` | 저장한 `.hwpx` |
+| `b.hwpx` | `""` | 저장한 `.hwpx`, `HWPX` | 저장한 `.hwpx` |
+| `a.hwp` | `"lock:false"` | `a.hwp`, `HWP` 그대로 | `a.hwp` |
+| `b.hwpx` | `"lock:false"` | `b.hwpx`, `HWPX` 그대로 | `b.hwpx` |
+| 새 문서(경로 없음) | `"lock:false"` | 경로 없음 그대로 | 실패(`false`) |
+
+SDK는 `lock`을 "저장한 후 해당 파일을 계속 오픈한 상태로 lock을 걸지 여부"(기본 `TRUE`, HWP 형식 옵션)로만 설명한다. HWPX 형식에서도 같은 옵션이 통했다.
+
+모든 경우에 `SaveAs` 뒤 `XHwpDocument::modified`는 `CLEAN`(0)이 됐다. `lock:false`로 원래 파일에 묶여 있어도, 원래 파일에 저장하지 않은 편집이 "변경 안 됨"으로 표시된다는 뜻이다.
+
+**대응.** `ExtDoc::hwpx_with_caret`은 `lock:false`로 저장한다. 저장 직후 책갈피를 `Undo`로 되돌리므로 문서는 다시 "변경됨"(`MODIFIED`)이 된다. 원래 "변경 안 됨"이던 문서도 "변경됨"으로 끝나는 부작용은 남는다(`Undo`가 변경 상태를 되돌리지 않기 때문).
+
+### 마지막으로 `SaveAs`한 파일은 다음 저장 계열 호출까지 지울 수 없다
+
+**관찰 기록.** `SaveAs`(`lock:false`이든 아니든) 직후 저장한 파일은 읽고 쓸 수는 있지만 지울 수 없었다(`remove_file`이 os error 32). 한글이 그 파일을 삭제 공유(`FILE_SHARE_DELETE`) 없이 열어 두는 것으로 보인다. 10초를 기다려도, `Undo`·글자 삽입을 해도 풀리지 않았다. 다른 파일로 `SaveAs`하면 앞 파일이 풀리고, `GetTextFile`도 앞 파일을 풀었다(SDK 비고대로 `GetTextFile`이 내부에서 저장을 호출하기 때문으로 보인다). `Clear`나 `Quit`으로도 풀린다.
+
+| 저장 뒤 호출 | 걸린 시간(약 290KB 문서) | 파일이 풀렸나 |
+|---|---|---|
+| `GetTextFile("TEXT", "saveblock")`, 선택 없음 | 5ms | 아니오(빈 값 반환) |
+| `GetTextFile("UNICODE", "saveblock")`, 선택 없음 | 1ms | 아니오(빈 값 반환) |
+| `GetTextFile("TEXT", "")` | 20ms | 예 |
+| `GetTextFile("HWPML2X", "")` | 155ms | 예 |
+
+같은 문서의 `SaveAs("HWPX")` 자체는 약 230ms였다.
+
+**대응.** `ExtDoc::hwpx_with_caret`은 저장 직후 `GetTextFile("TEXT", "")`을 한 번 불러 파일을 놓게 하고, 돌려준 `HwpxCaret`이 버려질 때 파일을 지운다.
+
+**확인 범위.** 한글 2018, 창을 숨긴 OLE 클라이언트에서만 확인했다. 창이 보이는 상태나 애드온 DLL 안에서, 그리고 2022·2024에서는 확인하지 않았다. HWP·HWPX 외 형식(PDF 등)도 확인하지 않았다.
+
+근거: [편의 API](crates/hwp_core/src/ext/doc.rs), [SaveAs 바인딩](crates/hwp_core/src/method/hwp_object.rs).
+
 ## 기존 문서·주석을 읽을 때의 정정 사항
 
 오래된 설명을 다시 구현 근거로 삼지 않도록 차이를 남긴다. 아래 항목은 현재 코드와 SDK를 대조한 결과이며, 이 문서 작성으로 해당 소스나 과거 문서를 일괄 수정하지는 않았다.

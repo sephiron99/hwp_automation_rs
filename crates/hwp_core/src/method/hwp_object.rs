@@ -445,6 +445,11 @@ impl HwpObject {
     ///   `"HTML"`, `"UNICODE"`, `"TEXT"`
     /// - `arg` — 추가 옵션 문자열(없으면 빈 문자열)
     ///
+    /// `arg`에 `lock:false`가 없으면, 한글의 "다른 이름으로 저장"처럼 열린 문서가 저장한
+    /// 파일로 바뀝니다(이후 `Save`가 그 파일에 저장됨). `lock:false`를 주면 열린 문서는 원래
+    /// 파일에 그대로 묶여 있습니다. 어느 쪽이든 문서의 변경 상태는 "변경 안 됨"이 됩니다
+    /// (HWP·HWPX 형식으로 저장할 때 한글 2018에서 확인).
+    ///
     /// SDK가 `false`를 돌려주면(저장 실패) `ExecutionFailed` 에러를 반환합니다.
     pub fn save_as(&self, path: &str, format: &str, arg: &str) -> crate::error::Result<()> {
         let ok: bool = self.call_with(
