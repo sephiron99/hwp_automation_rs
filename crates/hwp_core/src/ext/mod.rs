@@ -14,7 +14,7 @@
 //!
 //! - [`HwpObject::ext_text`] → [`ExtText`] — 텍스트 삽입, 문서 텍스트 순회
 //! - [`HwpObject::ext_shape`] → [`ExtShape`] — 커서 위치의 글자·문단 모양
-//! - [`HwpObject::ext_doc`] → [`ExtDoc`] — HWPX 저장, 커서 위치가 표시된 HWPML·HWPX
+//! - [`HwpObject::ext_doc`] → [`ExtDoc`] — HWPX 저장, 커서 위치가 표시된 HWPML·HWPX, LLM용 문서 텍스트
 //!
 //! [`HwpObject::ext_text`]: crate::HwpObject::ext_text
 //! [`HwpObject::ext_shape`]: crate::HwpObject::ext_shape
@@ -22,6 +22,7 @@
 pub mod char_shape;
 pub mod doc;
 pub mod hwpml_caret;
+pub mod llm_text;
 pub mod para_shape;
 pub mod shape;
 pub mod text;

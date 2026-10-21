@@ -106,8 +106,9 @@ hwp_core (lib.rs)
 └── ext            - 편의 API 핸들 (HwpObject::ext_* → Ext*)
     ├── text       - ExtText (insert, segments, all, visit), TextWalker, TextSegment
     ├── shape      - ExtShape (current_char, current_para)
-    ├── doc        - ExtDoc (save_as_hwpx, hwpml_with_caret)
-    └── char_shape, para_shape, hwpml_caret - 반환 타입 CharShape, ParaShape, HwpmlCaret
+    ├── doc        - ExtDoc (save_as_hwpx, hwpml_with_caret, hwpx_with_caret, llm_snapshot)
+    ├── llm_text   - HWPML2X → LLM용 간결한 텍스트 변환(한글 호출 없음)
+    └── char_shape, para_shape, hwpml_caret - 반환 타입 CharShape, ParaShape, HwpmlCaret, HwpxCaret
 ```
 
 ---
@@ -153,6 +154,8 @@ Methods (hwp_obj.rs):
   ext_text()  -> ExtText   insert(text), segments(), segments_with(option, range, spara, spos, epara, epos), all(), visit(f)
   ext_shape() -> ExtShape  current_char() -> CharShape, current_para() -> ParaShape
   ext_doc()   -> ExtDoc    save_as_hwpx(path), hwpml_with_caret() -> HwpmlCaret   (HWPML과 그 안의 커서 바이트 위치. 책갈피 삽입 → GetTextFile → Undo → GetTextFile)
+                           hwpx_with_caret() -> HwpxCaret   (책갈피를 넣어 임시 HWPX로 저장. 파일은 HwpxCaret 수명과 같음)
+                           llm_snapshot(context_paragraphs) -> String   (LLM용 텍스트. 책갈피 삽입 → GetTextFile 한 번 → Undo → 변경 상태 복원 → 변환)
 ```
 
 ---

@@ -5,6 +5,7 @@ use crate::method::hwp_object::GetTextFileFormat;
 
 use crate::method::h_action::HAction;
 
+use super::llm_text::{self, LlmTextOptions};
 use super::{HwpmlCaret, HwpxCaret};
 
 /// [`ExtDoc::hwpml_with_caret`]가 커서 자리에 잠깐 넣는 책갈피의 이름
@@ -122,6 +123,43 @@ impl ExtDoc<'_> {
         saved?;
 
         Ok(HwpxCaret::new(hwpx, bookmark_name))
+    }
+
+    /// 현재 문서 전체(글자·문단 모양 포함)와 커서 위치를 LLM이 읽기 좋은 간결한 텍스트로
+    /// 돌려줍니다. 형식은 [`llm_text`] 모듈 설명 참고.
+    ///
+    /// 커서 자리에 책갈피를 넣고 `GetTextFile("HWPML2X")`을 **한 번** 받은 뒤 `Undo`로
+    /// 되돌리고, 받은 HWPML을 Rust에서 변환합니다. 한글 호출은 이 하나뿐이라
+    /// [`hwpml_with_caret`](Self::hwpml_with_caret)(두 번)이나
+    /// [`hwpx_with_caret`](Self::hwpx_with_caret)(파일 저장)보다 빠릅니다.
+    ///
+    /// - `context_paragraphs`: `Some(n)`이면 커서가 든 본문 문단의 앞뒤 `n`개 문단만
+    ///   내보냅니다. 한글의 직렬화 시간은 같지만 LLM에 넘길 분량이 줄어듭니다.
+    ///
+    /// 책갈피를 넣고 되돌리면 한글은 문서를 "변경됨"으로 표시하므로, 호출 전의 변경 상태를
+    /// 되돌려 놓습니다. 다시 실행(`Redo`) 기록은 바뀝니다. 선택 블록이 있으면 커서 표시는
+    /// 블록의 앞끝에 놓이고 선택이 풀립니다([`hwpml_with_caret`](Self::hwpml_with_caret)와 같음).
+    ///
+    /// 자동 번호(번호 문단·개요 번호)의 글자는 HWPML 본문에 없어 나오지 않습니다. 문단
+    /// 모양에 "번호 문단 n수준"처럼 종류만 적힙니다.
+    pub fn llm_snapshot(&self, context_paragraphs: Option<usize>) -> Result<String> {
+        let bookmark = random_caret_bookmark();
+        let doc = self.0.documents()?.active()?;
+        let modified = doc.modified()?;
+
+        let action = self.insert_bookmark(&bookmark)?;
+        // 책갈피는 HWPML을 얻지 못했어도 되돌린다.
+        let hwpml = self.0.get_text_file(GetTextFileFormat::HwpMl2X, false);
+        action.undo()?;
+        doc.set_modified(modified)?;
+        let hwpml = hwpml?;
+
+        let options = LlmTextOptions {
+            caret_bookmark: Some(bookmark),
+            context_paragraphs,
+        };
+        llm_text::hwpml_to_llm_text(&hwpml, &options)
+            .map_err(|e| HwpError::ExecutionFailed(format!("HWPML을 해석하지 못했습니다: {e}")))
     }
 
     /// 커서 자리에 `name` 책갈피를 넣고, 되돌릴 때 쓸 `HAction`을 돌려준다.

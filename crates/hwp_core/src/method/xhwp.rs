@@ -173,6 +173,13 @@ impl XHwpDocument {
             .map(ModifiedState::from_bits_retain)
     }
 
+    /// Document의 변경 상태를 설정합니다.
+    ///
+    /// SDK: `Modified(Property)` — 도큐먼트의 변경 여부를 설정하거나/얻어옴
+    pub fn set_modified(&self, state: ModifiedState) -> Result<()> {
+        self.put("Modified", state.bits())
+    }
+
     /// Document의 저장된 포맷을 반환합니다 (읽기 전용).
     ///
     /// SDK: `Format(Property)`

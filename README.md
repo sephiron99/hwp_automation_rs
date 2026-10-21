@@ -193,7 +193,7 @@ OLE 클라이언트든 애드온이든 `HwpObject`를 얻은 뒤의 사용법은
 |---|---|
 | `hwp.ext_text()` | 텍스트 삽입(`insert`), 문서 텍스트 순회(`segments`, `segments_with`, `all`, `visit`) |
 | `hwp.ext_shape()` | 커서 위치의 글자·문단 모양(`current_char`, `current_para`) |
-| `hwp.ext_doc()` | HWPX 저장(`save_as_hwpx`), 커서 위치가 표시된 HWPML(`hwpml_with_caret`) |
+| `hwp.ext_doc()` | HWPX 저장(`save_as_hwpx`), 커서 위치가 표시된 HWPML·HWPX(`hwpml_with_caret`, `hwpx_with_caret`), LLM용 문서 텍스트(`llm_snapshot`) |
 
 ```rust
 hwp.ext_text().insert("텍스트")?;               // 커서 위치에 텍스트 삽입
@@ -202,9 +202,12 @@ let shape = hwp.ext_shape().current_char()?;    // 커서 위치의 글자 모�
 hwp.ext_doc().save_as_hwpx("C:\\out.hwpx")?;    // HWPX로 저장
 let doc = hwp.ext_doc().hwpml_with_caret()?;    // 문서의 HWPML과 그 안의 커서 위치
 let (before, after) = doc.hwpml.split_at(doc.offset);
+let text = hwp.ext_doc().llm_snapshot(Some(20))?; // 커서 앞뒤 20문단을 LLM용 텍스트로
 ```
 
 `hwpml_with_caret`은 커서 자리에 책갈피를 잠깐 넣어 `GetTextFile("HWPML2X")` 출력에서 그 자리를 찾고, 실행 취소(Undo)로 책갈피를 되돌린 뒤의 HWPML을 돌려줍니다. `GetPos` 값과 HWPML의 `CARETPOS`는 리스트·문단·글자 번호일 뿐이고, HWPML 본문 요소에는 그 번호에 대응하는 속성이 없어 커서가 HWPML의 어디인지 알 수 없기 때문입니다. 문서를 잠깐 수정하므로 수정 상태와 다시 실행(Redo) 기록이 바뀌고, `GetTextFile`을 두 번 부르므로 큰 문서에서는 느립니다. 선택 블록이 있으면 선택 방향과 상관없이 블록의 앞쪽 끝을 돌려주고, 호출 뒤에는 선택이 풀리며 커서가 블록의 뒤쪽 끝으로 갑니다.
+
+`llm_snapshot`은 문서를 글자·문단 모양 목록과, 모양이 바뀌는 자리에만 `{c20}` 같은 표시를 둔 본문으로 바꾸고 커서 자리에 `⟦CARET⟧`를 넣은 텍스트를 돌려줍니다. 표·머리말·각주는 문단 아래에 들여 써서 적습니다. `GetTextFile`을 한 번만 부르고 호출 전의 변경 상태를 되돌려 놓으므로, 문서 내용을 LLM에 넘길 때는 `hwpml_with_caret`보다 이쪽이 빠르고 짧습니다. 자동 번호의 글자(번호 문단의 "1." 등)는 나오지 않습니다.
 
 애드온에서는 `hwp_addon::text_edit::HwpEditExt`(커서 앞 문자 교체)도 쓸 수 있습니다. IME 조합 처리와 엮여 있어 애드온 크레이트에 있고, trait이라 `use`가 필요합니다.
 
