@@ -339,7 +339,7 @@ SDK는 `lock`을 "저장한 후 해당 파일을 계속 오픈한 상태로 lock
 
 **관찰 기록.** `SaveAs`(`lock:false`이든 아니든) 직후 저장한 파일은 읽고 쓸 수는 있지만 지울 수 없었다(`remove_file`이 os error 32). 한글이 그 파일을 삭제 공유(`FILE_SHARE_DELETE`) 없이 열어 두는 것으로 보인다. 10초를 기다려도, `Undo`·글자 삽입을 해도 풀리지 않았다. 다른 파일로 `SaveAs`하면 앞 파일이 풀리고, `GetTextFile`도 앞 파일을 풀었다(SDK 비고대로 `GetTextFile`이 내부에서 저장을 호출하기 때문으로 보인다). `Clear`나 `Quit`으로도 풀린다.
 
-| 저장 뒤 호출 | 걸린 시간(약 290KB 문서) | 파일이 풀렸나 |
+| 저장 뒤 호출 | 걸린 시간(약 290KB 문서) | 핸들을 놓았나 |
 |---|---|---|
 | `GetTextFile("TEXT", "saveblock")`, 선택 없음 | 5ms | 아니오(빈 값 반환) |
 | `GetTextFile("UNICODE", "saveblock")`, 선택 없음 | 1ms | 아니오(빈 값 반환) |
@@ -348,7 +348,7 @@ SDK는 `lock`을 "저장한 후 해당 파일을 계속 오픈한 상태로 lock
 
 같은 문서의 `SaveAs("HWPX")` 자체는 약 230ms였다.
 
-**대응.** `ExtDoc::hwpx_with_caret`은 저장 직후 `GetTextFile("TEXT", "")`을 한 번 불러 파일을 놓게 하고, 돌려준 `HwpxCaret`이 버려질 때 파일을 지운다.
+**대응.** 이 문서에서는 이 호출을 "핸들 놓게 하기"라고 부른다. `ExtDoc::hwpx_with_caret`은 저장 직후 `GetTextFile("TEXT", "")`을 한 번 불러 핸들을 놓게 하고, 돌려준 `HwpxCaret`이 버려질 때 파일을 지운다.
 
 **확인 범위.** 한글 2018, 창을 숨긴 OLE 클라이언트에서만 확인했다. 창이 보이는 상태나 애드온 DLL 안에서, 그리고 2022·2024에서는 확인하지 않았다. HWP·HWPX 외 형식(PDF 등)도 확인하지 않았다.
 
