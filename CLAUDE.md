@@ -38,6 +38,7 @@ Two modes of interacting with HWP:
 - **`hwp_addon`** — add-on framework, `HwpUserAction` trait, `#[repr(C)]` vtable structs
 - **`hello_hwp_ole`** (pkg: `hello_hwp_com`) — example binary using OLE client approach
 - **`hello_hwp_dll`** — example add-on DLL using `hwp_addon` framework
+- **`bench_doc_export`** — 문서 내용·구조 전체를 얻는 방법(`GetTextFile`/`SaveAs`, 형식별) 시간 측정용 OLE 클라이언트 바이너리
 - **`test_hwpml_caret`** — add-on DLL for verifying `ExtDoc::hwpml_with_caret` in a real HWP
 - **`hwp_dabbrev`** — hwp dynamic abbreviation addon like emacs's dabbrev.
   Sample project.

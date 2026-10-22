@@ -1,0 +1,9 @@
+[package]
+name = "bench_doc_export"
+version = "0.3.0"
+license = "MIT"
+edition = "2024"
+publish = false
+
+[dependencies]
+hwp_com = { version = "0.3.0", path = "../hwp_com" }

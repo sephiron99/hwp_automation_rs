@@ -45,6 +45,7 @@ hwp_automation_rs/
 │   ├── hwp_addon/       # 애드온 DLL 프레임워크 (HwpUserAction 트레이트, vtable)
 │   ├── hello_hwp_ole/   # OLE 클라이언트 예제
 │   ├── hello_hwp_dll/   # 애드온 DLL 예제
+│   ├── bench_doc_export/ # 문서 내보내기 방법별 시간 측정 (OLE 클라이언트)
 │   ├── test_hwpml_caret/ # `hwpml_with_caret` 실환경 검증용 애드온 DLL
 │   └── hwp_dabbrev/     # Emacs dabbrev 스타일 자동완성 애드온
 └── HncUserActionSample/ # C++ 애드온 레퍼런스 샘플
