@@ -4,6 +4,7 @@
 use crate::com_util;
 use crate::error::ensure;
 use crate::hwp_obj::HwpObject;
+use crate::pos::{ListParaPos, ListParaRange, ParaPos};
 use crate::variant::{FromVariant, IntoVariant};
 use std::borrow::Cow;
 
@@ -672,27 +673,23 @@ impl HwpObject {
     /// # 매개변수
     /// - `option` — 검색 대상 (`mask::*` 조합)
     /// - `range` — 검색 범위 (`ScanRange`)
-    /// - `spara`, `spos` — 시작 문단/위치 (`ScanSpos::Specified` 사용 시)
-    /// - `epara`, `epos` — 끝 문단/위치 (`ScanEpos::Specified` 사용 시)
+    /// - `start` — 시작 문단·글자 위치 (`ScanSpos::Specified` 사용 시)
+    /// - `end` — 끝 문단·글자 위치 (`ScanEpos::Specified` 사용 시)
     ///
     /// SDK가 `false`를 돌려주면 `ExecutionFailed` 에러를 반환합니다.
     pub fn init_scan(
         &self,
         option: u32,
         range: ScanRange,
-        spara: u32,
-        spos: u32,
-        epara: u32,
-        epos: u32,
+        start: ParaPos,
+        end: ParaPos,
     ) -> crate::error::Result<()> {
         let range_val = range.as_u32();
         tracing::trace!(
             option = format_args!("0x{option:02x}"),
             range = format_args!("0x{range_val:04x}"),
-            spara,
-            spos,
-            epara,
-            epos,
+            ?start,
+            ?end,
             "InitScan"
         );
         let ok: bool = self.call_with(
@@ -700,10 +697,10 @@ impl HwpObject {
             vec![
                 option.into_variant()?,
                 range_val.into_variant()?,
-                spara.into_variant()?,
-                spos.into_variant()?,
-                epara.into_variant()?,
-                epos.into_variant()?,
+                start.para.into_variant()?,
+                start.pos.into_variant()?,
+                end.para.into_variant()?,
+                end.pos.into_variant()?,
             ],
         )?;
         ensure(ok, || {
@@ -731,17 +728,13 @@ impl HwpObject {
         self.call("ReleaseScan")
     }
 
-    /// `GetPos` — 현재 캐럿 위치를 `(list, para, pos)`로 반환합니다.
+    /// `GetPos` — 현재 캐럿 위치를 반환합니다.
     ///
-    /// - `list` : 캐럿이 위치한 리스트 아이디
-    /// - `para` : 문단 번호
-    /// - `pos`  : 문단 내 문자 단위 위치
-    ///
-    /// 반환된 triple은 [`select_text`](Self::select_text)나 SDK의 `SetPos`에
-    /// 그대로 넘길 수 있습니다.
+    /// 각 값의 뜻은 [`ListParaPos`] 참고. 같은 리스트 안에서 [`select_text`](Self::select_text)에
+    /// 넘길 때는 [`ListParaPos::para_pos`]로 리스트를 뗍니다.
     ///
     /// SDK: `void GetPos(long FAR* list, long FAR* para, long FAR* pos)`
-    pub fn get_pos(&self) -> crate::error::Result<(i32, i32, i32)> {
+    pub fn get_pos(&self) -> crate::error::Result<ListParaPos> {
         use windows::Win32::System::Variant::{VARIANT, VT_BYREF, VT_I4};
 
         let mut list = 0i32;
@@ -765,7 +758,40 @@ impl HwpObject {
         };
 
         let _ = com_util::call_method_with(self.as_dispatch(), "GetPos", args)?;
-        Ok((list, para, pos))
+        Ok(ListParaPos::new(list, para, pos))
+    }
+
+    /// `GetSelectedPos` — 현재 설정된 블록의 범위를 반환합니다. 블록이 없으면 `None`입니다.
+    ///
+    /// [`ListParaRange`] 참고. `start`가 문서상 앞쪽이고, 끝 위치의 글자는 블록에 들어가지
+    /// 않습니다.
+    ///
+    /// SDK: `VARIANT_BOOL GetSelectedPos(long* slist, long* spara, long* spos, long* elist,
+    /// long* epara, long* epos)`
+    ///
+    /// SDK의 `false`는 블록이 설정되어 있지 않다는 뜻이므로 `None`으로 돌려줍니다.
+    pub fn get_selected_pos(&self) -> crate::error::Result<Option<ListParaRange>> {
+        use windows::Win32::System::Variant::{VARIANT, VT_BYREF, VT_I4};
+
+        let mut v = [0i32; 6];
+        let args = v
+            .iter_mut()
+            .map(|slot| unsafe {
+                let mut var = VARIANT::default();
+                (*var.Anonymous.Anonymous).vt = VT_I4 | VT_BYREF;
+                (*var.Anonymous.Anonymous).Anonymous.plVal = slot;
+                var
+            })
+            .collect();
+
+        let res = com_util::call_method_with(self.as_dispatch(), "GetSelectedPos", args)?;
+        if !bool::from_variant(&res)? {
+            return Ok(None);
+        }
+        Ok(Some(ListParaRange {
+            start: ListParaPos::new(v[0], v[1], v[2]),
+            end: ListParaPos::new(v[3], v[4], v[5]),
+        }))
     }
 
     /// `SelectText` — 문단/위치 쌍으로 표현된 범위를 직접 선택합니다.
@@ -776,26 +802,21 @@ impl HwpObject {
     ///
     /// SDK: `BOOL SelectText(long spara, long spos, long epara, long epos)`
     ///
+    /// 리스트 인자가 없어 현재 리스트 안에서 선택합니다. `end` 자리의 글자는 들어가지
+    /// 않습니다.
+    ///
     /// SDK가 `false`를 돌려주면 `ExecutionFailed` 에러를 반환합니다.
-    pub fn select_text(
-        &self,
-        spara: i32,
-        spos: i32,
-        epara: i32,
-        epos: i32,
-    ) -> crate::error::Result<()> {
+    pub fn select_text(&self, start: ParaPos, end: ParaPos) -> crate::error::Result<()> {
         let ok: bool = self.call_with(
             "SelectText",
             vec![
-                spara.into_variant()?,
-                spos.into_variant()?,
-                epara.into_variant()?,
-                epos.into_variant()?,
+                start.para.into_variant()?,
+                start.pos.into_variant()?,
+                end.para.into_variant()?,
+                end.pos.into_variant()?,
             ],
         )?;
-        ensure(ok, || {
-            format!("SelectText({spara}, {spos}, {epara}, {epos})")
-        })
+        ensure(ok, || format!("SelectText({start:?}, {end:?})"))
     }
 
     /// `KeyIndicator` — 현재 커서 위치의 정보를 가져오고 상태 표시줄을 강제로 갱신합니다.

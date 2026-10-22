@@ -18,7 +18,7 @@
 
 | Interface | Rust 타입 | method 수 | binding 있음 | binding 없음 |
 |---|---|---:|---:|---:|
-| `IHwpObject` | `HwpObject` | 174 | 17 | 157 |
+| `IHwpObject` | `HwpObject` | 174 | 18 | 156 |
 | `IDHwpAction` | (없음) | 5 | 0 | 5 |
 | `IDHwpParameterSet` | (없음) | 11 | 0 | 11 |
 | `IDHwpParameterArray` | (없음) | 4 | 0 | 4 |
@@ -45,13 +45,13 @@
 | `IXHwpParagraphShape` | (없음) | 19 | 0 | 19 |
 | `IXHwpMessageBox` | (없음) | 1 | 0 | 1 |
 | `IXHwpSendMail` | (없음) | 1 | 0 | 1 |
-| **합계** | | **366** | **37** | **329** |
+| **합계** | | **366** | **38** | **328** |
 
 이와 별도로 이벤트 interface `IHwpObjectEvents`의 콜백 16개는 전부 미구현이다(맨 아래 참고).
 
-## `IHwpObject` — 미구현 157 / 174
+## `IHwpObject` — 미구현 156 / 174
 
-binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `GetText`, `GetPos`, `KeyIndicator`, `GetTextFile`, `SetTextFile`, `Run`, `Open`, `Clear`, `Quit`, `GetMessageBoxMode`, `SetMessageBoxMode`, `RegisterModule`
+binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `GetText`, `GetPos`, `KeyIndicator`, `GetTextFile`, `SetTextFile`, `Run`, `Open`, `Clear`, `Quit`, `GetMessageBoxMode`, `SetMessageBoxMode`, `RegisterModule`, `GetSelectedPos`
 
 ### 파일 · 문서 (13)
 
@@ -95,12 +95,11 @@ binding 있음: `SaveAs`, `SelectText`, `MovePos`, `InitScan`, `ReleaseScan`, `G
 - [ ] `GetMetatagList(Number: VARIANT, option: VARIANT) -> BSTR`
 - [ ] `ModifyMetatagProperties(tag: BSTR, remove: long, Add: long) -> long`
 
-### 캐럿 위치 · 선택 (6)
+### 캐럿 위치 · 선택 (5)
 
 - [ ] `SetPos(List: long, Para: long, pos: long) -> VARIANT_BOOL`
 - [ ] `GetPosBySet() -> IDispatch`
 - [ ] `SetPosBySet(dispVal: IDispatch*) -> VARIANT_BOOL`
-- [ ] `GetSelectedPos(out slist: long*, out spara: long*, out spos: long*, out elist: long*, out epara: long*, out epos: long*) -> VARIANT_BOOL`
 - [ ] `GetSelectedPosBySet(sset: IDispatch*, eset: IDispatch*) -> VARIANT_BOOL`
 - [ ] `GetMousePos(XRelTo: long, YRelTo: long) -> IDispatch`
 

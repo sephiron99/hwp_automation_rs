@@ -10,6 +10,7 @@ pub mod disp_obj;
 pub mod error;
 pub mod hwp_obj;
 pub mod hwp_ver;
+pub mod pos;
 pub mod variant;
 
 pub use hwp_obj::HwpObject;

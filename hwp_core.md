@@ -69,6 +69,7 @@ hwp_core (lib.rs)
 │  ── 기반 ──
 ├── error          - HwpError, Result<T>
 ├── hwp_ver        - HwpVer (버전 열거형)
+├── pos            - ListParaPos, ParaPos, ListParaRange (문서 안의 위치: 리스트·문단·글자)
 ├── variant        - FromVariant / IntoVariant 트레이트
 ├── com_util       - 저수준 COM Invoke 래퍼
 ├── disp_obj       - DispObj (일반 IDispatch 래퍼), hwp_com_type! 매크로
@@ -142,16 +143,17 @@ Methods (hwp_obj.rs):
   get_text_file(format, save_block) -> Result<String>
   set_text_file(data, format, option) -> Result<i32>
   save_as(path, &FileFormat, arg) -> Result<()>
-  init_scan(option, range, spara, spos, epara, epos) -> Result<()>
+  init_scan(option, range, start: ParaPos, end: ParaPos) -> Result<()>
   get_text() -> Result<(GetTextStatus, String)>
   release_scan() -> Result<()>
-  get_pos() -> Result<(i32, i32, i32)>
-  select_text(spara, spos, epara, epos) -> Result<()>
+  get_pos() -> Result<ListParaPos>
+  get_selected_pos() -> Result<Option<ListParaRange>>   (블록의 시작·끝. 블록이 없으면 None)
+  select_text(start: ParaPos, end: ParaPos) -> Result<()>   (현재 리스트 안)
   key_indicator() -> Result<KeyIndicatorInfo>
   move_pos(to: MovePos) -> Result<()>
 
 + ext 편의 API 핸들 (import 불필요):
-  ext_text()  -> ExtText   insert(text), segments(), segments_with(option, range, spara, spos, epara, epos), all(), visit(f)
+  ext_text()  -> ExtText   insert(text), segments(), segments_with(option, range, start: ParaPos, end: ParaPos), all(), visit(f)
   ext_shape() -> ExtShape  current_char() -> CharShape, current_para() -> ParaShape
   ext_doc()   -> ExtDoc    save_as_hwpx(path), hwpml_with_caret() -> HwpmlCaret   (HWPML과 그 안의 커서 바이트 위치. 책갈피 삽입 → GetTextFile → Undo → GetTextFile)
                            hwpx_with_caret() -> HwpxCaret   (책갈피를 넣어 임시 HWPX로 저장. 파일은 HwpxCaret 수명과 같음)

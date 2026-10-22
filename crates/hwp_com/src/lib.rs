@@ -27,7 +27,7 @@ pub use hwp_core::error::{HwpError, Result};
 #[doc(no_inline)]
 pub use hwp_core::hwp_ver::HwpVer;
 #[doc(no_inline)]
-pub use hwp_core::{actions, error, ext, hwp_ver, method, pset, variant};
+pub use hwp_core::{actions, error, ext, hwp_ver, method, pos, pset, variant};
 
 use windows::Win32::Foundation::CO_E_NOTINITIALIZED;
 use windows::Win32::System::Com::{

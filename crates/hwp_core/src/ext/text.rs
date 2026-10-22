@@ -34,6 +34,7 @@ use std::ops::ControlFlow;
 use crate::error::{HwpError, Result};
 use crate::hwp_obj::HwpObject;
 use crate::method::hwp_object::{GetTextStatus, ScanEpos, ScanRange, ScanSpos, mask};
+use crate::pos::ParaPos;
 
 /// 한 텍스트 추출 이벤트.
 #[derive(Debug, Clone)]
@@ -76,12 +77,10 @@ impl<'h> TextWalker<'h> {
         hwp: &'h HwpObject,
         option: u32,
         range: ScanRange,
-        spara: u32,
-        spos: u32,
-        epara: u32,
-        epos: u32,
+        start: ParaPos,
+        end: ParaPos,
     ) -> Result<Self> {
-        hwp.init_scan(option, range, spara, spos, epara, epos)?;
+        hwp.init_scan(option, range, start, end)?;
         Ok(Self {
             hwp,
             pending: Pending::None,
@@ -201,10 +200,8 @@ impl<'h> ExtText<'h> {
         self.segments_with(
             mask::NORMAL | mask::CHAR | mask::INLINE | mask::CTRL,
             ScanRange::new(ScanSpos::Document, ScanEpos::Document),
-            0,
-            0,
-            0,
-            0,
+            ParaPos::new(0, 0),
+            ParaPos::new(0, 0),
         )
     }
 
@@ -215,23 +212,20 @@ impl<'h> ExtText<'h> {
     ///   (예: `mask::NORMAL | mask::CTRL`).
     /// - `range` — 검색 범위. [`ScanRange::new`]로 시작/끝 위치 종류를
     ///   지정하거나 [`ScanRange::within_selection`]으로 선택 블록에 한정한다.
-    /// - `spara`, `spos` — 시작 문단 번호와 그 안에서의 문자 위치.
-    ///   `range`의 시작이 [`ScanSpos::Specified`]일 때만 의미가 있고,
-    ///   그 외에는 0을 넘기면 된다.
-    /// - `epara`, `epos` — 끝 문단/문자 위치. `range`의 끝이
-    ///   [`ScanEpos::Specified`]일 때만 의미가 있고, 그 외에는 0.
+    /// - `start` — 시작 문단·글자 위치. `range`의 시작이 [`ScanSpos::Specified`]일 때만
+    ///   의미가 있고, 그 외에는 `ParaPos::new(0, 0)`을 넘기면 된다.
+    /// - `end` — 끝 문단·글자 위치. `range`의 끝이 [`ScanEpos::Specified`]일 때만 의미가
+    ///   있고, 그 외에는 `ParaPos::new(0, 0)`.
     ///
     /// 내부적으로 [`HwpObject::init_scan`]에 그대로 전달된다.
     pub fn segments_with(
         &self,
         option: u32,
         range: ScanRange,
-        spara: u32,
-        spos: u32,
-        epara: u32,
-        epos: u32,
+        start: ParaPos,
+        end: ParaPos,
     ) -> Result<TextWalker<'h>> {
-        TextWalker::new(self.0, option, range, spara, spos, epara, epos)
+        TextWalker::new(self.0, option, range, start, end)
     }
 
     /// 전체 텍스트를 단일 `String`으로 반환한다. 컨트롤 진입/탈출 경계는

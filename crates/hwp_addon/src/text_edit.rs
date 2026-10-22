@@ -45,6 +45,7 @@
 
 use hwp_core::error::Result;
 use hwp_core::hwp_obj::HwpObject;
+use hwp_core::pos::ParaPos;
 
 /// [`HwpObject`]에 IME-safe 고수준 편집 메서드를 추가하는 extension trait.
 ///
@@ -96,12 +97,12 @@ impl HwpEditExt for HwpObject {
         if n <= 0 {
             return Ok(false);
         }
-        let (_, para, pos) = self.get_pos()?;
-        let start = (pos - n).max(0);
-        if start == pos {
+        let here = self.get_pos()?.para_pos();
+        let start = ParaPos::new(here.para, (here.pos - n).max(0));
+        if start == here {
             return Ok(false);
         }
-        self.select_text(para, start, para, pos)?;
+        self.select_text(start, here)?;
         Ok(true)
     }
 

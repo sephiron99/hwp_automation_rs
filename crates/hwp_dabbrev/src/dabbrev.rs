@@ -4,6 +4,7 @@ use hwp_addon::{
     HwpObject,
     ext::TextSegment,
     method::hwp_object::{ScanRange, mask},
+    pos::ParaPos,
     text_edit::HwpEditExt,
     variant::IntoVariant,
 };
@@ -38,8 +39,8 @@ fn insert_candidate(hwp: &HwpObject, prefix: Option<&str>, word: &str) -> hwp_ad
     if let Some(prefix) = prefix {
         hwp.replace_word_before(prefix, word)
     } else {
-        let (_, para, pos) = hwp.get_pos()?;
-        hwp.select_text(para, pos, para, pos)?;
+        let here = hwp.get_pos()?.para_pos();
+        hwp.select_text(here, here)?;
         hwp.ext_text().insert(word)
     }
 }
@@ -56,31 +57,29 @@ impl DabbrevPlugin {
         let action = hwp.h_action()?;
         action.run("Cancel")?;
         action.run("Cancel")?;
-        let (list, para, pos) = hwp.get_pos()?;
+        let caret = hwp.get_pos()?;
 
         let restore_caret = || -> hwp_addon::Result<()> {
             hwp.call_with(
                 "SetPos",
                 vec![
-                    list.into_variant()?,
-                    para.into_variant()?,
-                    pos.into_variant()?,
+                    caret.list.into_variant()?,
+                    caret.para.into_variant()?,
+                    caret.pos.into_variant()?,
                 ],
             )
         };
         let read_selection = || -> hwp_addon::Result<String> {
             // 문서 경계 등에서 선택 범위가 생기지 않았다면 스캔하지 않는다.
-            if hwp.get_pos()? == (list, para, pos) {
+            if hwp.get_pos()? == caret {
                 return Ok(String::new());
             }
             let mut text = String::new();
             for segment in hwp.ext_text().segments_with(
                 mask::NORMAL,
                 ScanRange::within_selection(),
-                0,
-                0,
-                0,
-                0,
+                ParaPos::new(0, 0),
+                ParaPos::new(0, 0),
             )? {
                 match segment? {
                     TextSegment::Text(s) | TextSegment::EnterCtrl(s) => text.push_str(&s),
@@ -94,7 +93,7 @@ impl DabbrevPlugin {
         let result: hwp_addon::Result<_> = (|| {
             action.run("MoveSelWordBegin")?;
             let mut before = read_selection()?;
-            if pos > 0 && !before.chars().any(char::is_alphanumeric) {
+            if caret.pos > 0 && !before.chars().any(char::is_alphanumeric) {
                 // "오늘 |"에서 공백만 읽으면 prev_word를 구할 수 없다.
                 // 원래 캐럿을 기준으로 범위를 넓히고, 뒤의 공백은 그대로 보존한다.
                 restore_caret()?;

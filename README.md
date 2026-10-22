@@ -220,10 +220,11 @@ let text = hwp.ext_doc().llm_snapshot(Some(20))?; // 커서 앞뒤 20문단을 L
 
 ```rust
 use hwp_com::method::hwp_object::{GetTextFileFormat, ScanRange, mask};   // 애드온은 hwp_addon::method::…
+use hwp_com::pos::ParaPos;
 
-let (list, para, pos) = hwp.get_pos()?;
+let caret = hwp.get_pos()?;                       // ListParaPos { list, para, pos }
 hwp.get_text_file(GetTextFileFormat::Unicode, false)?;
-hwp.init_scan(mask::NORMAL, ScanRange::within_selection(), 0, 0, 0, 0)?;
+hwp.init_scan(mask::NORMAL, ScanRange::within_selection(), ParaPos::new(0, 0), ParaPos::new(0, 0))?;
 hwp.windows()?.active()?.set_visible(true)?;
 ```
 
@@ -345,6 +346,16 @@ hwp.save_as(path, &FileFormat::HWPX, "")?;
 |---|---|
 | `edit_mode() -> Result<i32>` | `edit_mode() -> Result<EditMode>`. 배포용 문서는 다른 모드와 합쳐져 오므로(실측 17) `contains(EditMode::DISTRIBUTION)`으로, 읽기 전용은 `is_read_only()`로 판단합니다. 정수는 `bits()` |
 | `modified() -> Result<bool>` | `modified() -> Result<ModifiedState>`. 변경 여부는 `is_modified()`. 0.3.0의 `bool` 버전은 한글이 정수를 돌려줘 항상 `VariantConversion` 에러가 났습니다 |
+
+**문서 안의 위치가 타입으로 바뀌었습니다.** 새 모듈 `pos`(`hwp_com::pos`, `hwp_addon::pos`)의 `ListParaPos { list, para, pos }`, 같은 리스트 안의 `ParaPos { para, pos }`, 범위 `ListParaRange { start, end }`를 씁니다. `SelectText`·`InitScan`·`MovePos`처럼 리스트 없이 받는 SDK 함수는 `ParaPos`를 받습니다.
+
+| 0.3.0 | 다음 버전 |
+|---|---|
+| `let (list, para, pos) = hwp.get_pos()?;` | `let p = hwp.get_pos()?;` → `p.list`, `p.para`, `p.pos` |
+| `hwp.select_text(spara, spos, epara, epos)?` | `hwp.select_text(ParaPos::new(spara, spos), ParaPos::new(epara, epos))?` (현재 위치에서 시작하면 `hwp.get_pos()?.para_pos()`) |
+| `hwp.init_scan(option, range, spara, spos, epara, epos)?` | `hwp.init_scan(option, range, ParaPos::new(spara, spos), ParaPos::new(epara, epos))?` |
+| `hwp.text_segments_with(option, range, 0, 0, 0, 0)` | `hwp.ext_text().segments_with(option, range, ParaPos::new(0, 0), ParaPos::new(0, 0))` |
+| `MovePos::Main { para, pos }` / `MovePos::CurList { para, pos }` | `MovePos::Main(ParaPos::new(para, pos))` / `MovePos::CurList(..)` |
 
 ### 0.3.0
 

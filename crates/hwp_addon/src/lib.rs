@@ -21,7 +21,7 @@ pub use hwp_core::error::{HwpError, Result};
 #[doc(no_inline)]
 pub use hwp_core::hwp_ver::HwpVer;
 #[doc(no_inline)]
-pub use hwp_core::{actions, error, ext, hwp_ver, method, pset, variant};
+pub use hwp_core::{actions, error, ext, hwp_ver, method, pos, pset, variant};
 
 // `export_hwp_addon!`이 사용자 크레이트에서 tracing 매크로를 쓰기 위한 re-export.
 #[doc(hidden)]

@@ -14,6 +14,7 @@
 
 use crate::error::{Result, ensure};
 use crate::hwp_obj::HwpObject;
+use crate::pos::ParaPos;
 use crate::variant::IntoVariant;
 
 /// `MovePos` 메서드에 넘길 이동 명령.
@@ -22,20 +23,10 @@ use crate::variant::IntoVariant;
 /// 각 variant는 해당 `moveID`가 실제로 사용하는 부가 파라미터만을 담는다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MovePos {
-    /// `moveMain` (0). 루트 리스트에서 `para`번째 문단의 `pos` 문자 위치로 이동.
-    Main {
-        /// 이동할 문단 번호.
-        para: u32,
-        /// 문단 내 문자 위치.
-        pos: u32,
-    },
-    /// `moveCurList` (1). 현재 리스트에서 `para`번째 문단의 `pos` 문자 위치로 이동.
-    CurList {
-        /// 이동할 문단 번호.
-        para: u32,
-        /// 문단 내 문자 위치.
-        pos: u32,
-    },
+    /// `moveMain` (0). 루트 리스트에서 주어진 문단·글자 위치로 이동.
+    Main(ParaPos),
+    /// `moveCurList` (1). 현재 리스트에서 주어진 문단·글자 위치로 이동.
+    CurList(ParaPos),
     /// `moveTopOfFile` (2). 문서의 시작으로 이동.
     TopOfFile,
     /// `moveBottomOfFile` (3). 문서의 끝으로 이동.
@@ -128,8 +119,8 @@ impl MovePos {
     /// 이 이동 명령에 대응되는 `moveID` 수치값을 반환한다.
     pub fn id(self) -> u32 {
         match self {
-            MovePos::Main { .. } => 0,
-            MovePos::CurList { .. } => 1,
+            MovePos::Main(_) => 0,
+            MovePos::CurList(_) => 1,
             MovePos::TopOfFile => 2,
             MovePos::BottomOfFile => 3,
             MovePos::TopOfList => 4,
@@ -175,7 +166,7 @@ impl MovePos {
     /// - 그 외: `(0, 0)`. SDK가 무시한다.
     fn para_pos(self) -> (u32, u32) {
         match self {
-            MovePos::Main { para, pos } | MovePos::CurList { para, pos } => (para, pos),
+            MovePos::Main(p) | MovePos::CurList(p) => (p.para as u32, p.pos as u32),
             MovePos::ScrPos { x, y } => ((x as u32) | ((y as u32) << 16), 0),
             _ => (0, 0),
         }
@@ -199,7 +190,7 @@ impl HwpObject {
     /// # 예시
     /// ```ignore
     /// hwp.move_pos(MovePos::TopOfFile)?;
-    /// hwp.move_pos(MovePos::CurList { para: 3, pos: 0 })?;
+    /// hwp.move_pos(MovePos::CurList(ParaPos::new(3, 0)))?;
     /// hwp.move_pos(MovePos::ScrPos { x: 120, y: 240 })?;
     /// ```
     pub fn move_pos(&self, to: MovePos) -> Result<()> {
