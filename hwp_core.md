@@ -141,7 +141,7 @@ Methods (hwp_obj.rs):
   path() -> Result<String>
   get_text_file(format, save_block) -> Result<String>
   set_text_file(data, format, option) -> Result<i32>
-  save_as(path, format, arg) -> Result<()>
+  save_as(path, &FileFormat, arg) -> Result<()>
   init_scan(option, range, spara, spos, epara, epos) -> Result<()>
   get_text() -> Result<(GetTextStatus, String)>
   release_scan() -> Result<()>

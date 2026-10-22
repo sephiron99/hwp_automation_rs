@@ -327,6 +327,17 @@ hwp.h_action()?.run("FileNew")?;
 
 `use …::HwpExt;`와 `use hwp_addon::text_extract::HwpTextExt;`는 지우면 됩니다.
 
+**`save_as`의 형식 인자가 `FileFormat`입니다.** 형식 이름을 문자열 대신 `FileFormat` 상수로 넘깁니다. 상수에 없는 형식은 `FileFormat::new("이름")`으로 만듭니다.
+
+```rust
+// 0.3.0
+hwp.save_as(path, "HWPX", "")?;
+
+// 다음 버전
+use hwp_com::method::hwp_object::FileFormat;
+hwp.save_as(path, &FileFormat::HWPX, "")?;
+```
+
 ### 0.3.0
 
 **로그가 `tracing`으로 바뀌었습니다.** `hwp_core::debug` 모듈과 `hwp_addon::debug::log`가 없어졌습니다. 로그를 남기려면 `tracing::debug!` 등을 쓰고, 파일로 받으려면 위 [로그](#로그) 절을 참고하세요. 더 이상 라이브러리가 `%LOCALAPPDATA%`에 로그 파일을 저절로 만들지 않습니다. `hwp_addon::debug::{msgbox, msgbox_err}`는 그대로입니다.

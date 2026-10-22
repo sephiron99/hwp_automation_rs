@@ -105,6 +105,17 @@ impl FromVariant for String {
     }
 }
 
+/// `VT_EMPTY`·`VT_NULL`이면 `None`, 문자열이면 `Some`
+impl FromVariant for Option<String> {
+    fn from_variant(v: &VARIANT) -> crate::error::Result<Self> {
+        let vt = unsafe { v.Anonymous.Anonymous.vt };
+        match vt {
+            VT_EMPTY | VT_NULL => Ok(None),
+            _ => String::from_variant(v).map(Some),
+        }
+    }
+}
+
 impl FromVariant for () {
     fn from_variant(_v: &VARIANT) -> crate::error::Result<Self> {
         Ok(())

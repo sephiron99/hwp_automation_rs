@@ -5,6 +5,7 @@ use crate::com_util;
 use crate::error::ensure;
 use crate::hwp_obj::HwpObject;
 use crate::variant::{FromVariant, IntoVariant};
+use std::borrow::Cow;
 
 // =========================================================================
 // GetTextFile 관련 타입
@@ -13,6 +14,12 @@ use crate::variant::{FromVariant, IntoVariant};
 /// `GetTextFile`의 `format` 파라미터
 ///
 /// SDK 문자열: "HWP", "HWPML2X", "HTML", "UNICODE", "TEXT"
+///
+/// `Open`·`SaveAs`의 [`FileFormat`]과 달리 닫힌 목록이다. 한글 2018에서 이 다섯 말고
+/// `HWPX`, `MSWORD`, `PDF`, `RTF` 등을 넘기면 에러 없이 빈 값을 돌려줬다. 다섯 형식은 모두
+/// `Open`·`SaveAs`에서도 쓸 수 있으므로 [`FileFormat`]으로 바꿀 수 있다(`From`). 반대 방향은
+/// `TryFrom`이다.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GetTextFileFormat {
     /// 유니코드 텍스트
     Unicode,
@@ -27,7 +34,8 @@ pub enum GetTextFileFormat {
 }
 
 impl GetTextFileFormat {
-    fn as_str(&self) -> &'static str {
+    /// SDK에 넘길 형식 이름
+    pub fn as_str(&self) -> &'static str {
         match self {
             GetTextFileFormat::Unicode => "UNICODE",
             GetTextFileFormat::Text => "TEXT",
@@ -35,6 +43,86 @@ impl GetTextFileFormat {
             GetTextFileFormat::Hwp => "HWP",
             GetTextFileFormat::HwpMl2X => "HWPML2X",
         }
+    }
+}
+
+// =========================================================================
+// Open / SaveAs 관련 타입
+// =========================================================================
+
+/// `Open`·`SaveAs`의 `format` 파라미터 — 문서 형식 이름
+///
+/// 쓸 수 있는 형식은 설치된 문서 필터(`*.dft`)에 따라 달라지므로 닫힌 목록이 아니다.
+/// 알려진 형식은 상수로 두고, 목록에 없는 형식은 [`FileFormat::new`]로 만든다.
+///
+/// 상수는 자주 쓰는 형식만 둔다. `HWPX`와 `PDF` 말고는 `HwpAutomation_2504.pdf`의 `Open`
+/// 항목에 있는 형식 목록에 있다. 이 프로젝트에서 실환경으로 확인한 것은 주석에 적었다.
+///
+/// SDK 참고: HwpAutomation_2504.pdf § IHwpObject `Open(Method)`
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FileFormat(Cow<'static, str>);
+
+impl FileFormat {
+    /// 한글 문서 (SDK: "워디안 native format"). 열기·저장 모두 한글 2018에서 확인
+    pub const HWP: Self = Self::from_static("HWP");
+    /// 한글 개방형 문서(OWPML). SDK 목록에는 없다. 열기·저장 모두 한글 2018에서 확인
+    pub const HWPX: Self = Self::from_static("HWPX");
+    /// HWPML 2.X 문서 (SDK: 열기·저장 가능)
+    pub const HWPML2X: Self = Self::from_static("HWPML2X");
+    /// 인터넷 문서
+    pub const HTML: Self = Self::from_static("HTML");
+    /// 유니코드 텍스트 문서
+    pub const UNICODE: Self = Self::from_static("UNICODE");
+    /// 마이크로소프트 워드 문서
+    pub const MSWORD: Self = Self::from_static("MSWORD");
+    /// PDF. SDK 목록에는 없다. 이 프로젝트에서는 확인하지 않음
+    pub const PDF: Self = Self::from_static("PDF");
+
+    const fn from_static(name: &'static str) -> Self {
+        Self(Cow::Borrowed(name))
+    }
+
+    /// 상수에 없는 형식 이름으로 만든다. 한글이 그 이름의 필터를 갖고 있는지는 확인하지 않는다.
+    pub fn new(name: impl Into<Cow<'static, str>>) -> Self {
+        Self(name.into())
+    }
+
+    /// SDK에 넘길 형식 이름
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for FileFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl From<GetTextFileFormat> for FileFormat {
+    fn from(format: GetTextFileFormat) -> Self {
+        Self::from_static(format.as_str())
+    }
+}
+
+impl TryFrom<&FileFormat> for GetTextFileFormat {
+    type Error = crate::error::HwpError;
+
+    /// `GetTextFile`이 받는 다섯 형식이면 바꾸고, 아니면 `InvalidParameterType` 에러
+    fn try_from(format: &FileFormat) -> crate::error::Result<Self> {
+        Ok(match format.as_str() {
+            "UNICODE" => Self::Unicode,
+            "TEXT" => Self::Text,
+            "HTML" => Self::Html,
+            "HWP" => Self::Hwp,
+            "HWPML2X" => Self::HwpMl2X,
+            other => {
+                return Err(crate::error::HwpError::InvalidParameterType {
+                    param: "format".into(),
+                    details: format!("GetTextFile은 '{other}' 형식을 지원하지 않습니다"),
+                });
+            }
+        })
     }
 }
 
@@ -398,16 +486,25 @@ impl HwpObject {
     ///
     /// # 옵션
     /// - `save_block = true` — 선택 블록만 저장 (객체 선택 시 동작 안 함)
+    ///
+    /// 한글이 빈 값을 돌려주면 `ExecutionFailed` 에러를 반환합니다. 블록을 선택하지 않고
+    /// `save_block = true`로 부르면 이렇게 됩니다(한글 2018에서 확인).
     pub fn get_text_file(
         &self,
         format: GetTextFileFormat,
         save_block: bool,
     ) -> crate::error::Result<String> {
         let option = if save_block { "saveblock" } else { "" };
-        self.call_with(
+        let text: Option<String> = self.call_with(
             "GetTextFile",
             vec![format.as_str().into_variant()?, option.into_variant()?],
-        )
+        )?;
+        text.ok_or_else(|| {
+            crate::error::HwpError::ExecutionFailed(format!(
+                "GetTextFile({}, {option:?})이 결과를 돌려주지 않았습니다",
+                format.as_str()
+            ))
+        })
     }
 
     /// `SetTextFile` — 문자열로 변환된 문서를 현재 문서에 설정합니다.
@@ -439,10 +536,9 @@ impl HwpObject {
 
     /// `SaveAs` — 현재 문서를 지정한 경로/포맷으로 저장합니다.
     ///
-    /// SDK: `boolean SaveAs(BSTR Path, BSTR Format, BSTR arg)`
+    /// SDK: `VARIANT_BOOL SaveAs(BSTR Path, VARIANT Format, VARIANT arg)`
     /// - `path` — 저장할 전체 파일 경로
-    /// - `format` — 파일 포맷 문자열. 예: `"HWP"`, `"HWPX"`, `"HWPML2X"`, `"PDF"`,
-    ///   `"HTML"`, `"UNICODE"`, `"TEXT"`
+    /// - `format` — 문서 형식. 예: [`FileFormat::HWPX`], [`FileFormat::HWP`]
     /// - `arg` — 추가 옵션 문자열(없으면 빈 문자열)
     ///
     /// `arg`에 `lock:false`가 없으면, 한글의 "다른 이름으로 저장"처럼 열린 문서가 저장한
@@ -451,30 +547,36 @@ impl HwpObject {
     /// (HWP·HWPX 형식으로 저장할 때 한글 2018에서 확인).
     ///
     /// SDK가 `false`를 돌려주면(저장 실패) `ExecutionFailed` 에러를 반환합니다.
-    pub fn save_as(&self, path: &str, format: &str, arg: &str) -> crate::error::Result<()> {
+    pub fn save_as(&self, path: &str, format: &FileFormat, arg: &str) -> crate::error::Result<()> {
         let ok: bool = self.call_with(
             "SaveAs",
             vec![
                 path.into_variant()?,
-                format.into_variant()?,
+                format.as_str().into_variant()?,
                 arg.into_variant()?,
             ],
         )?;
-        ensure(ok, || format!("SaveAs({path:?}, {format:?})"))
+        ensure(ok, || format!("SaveAs({path:?}, {format}, {arg:?})"))
     }
 
     /// `Open` — 문서 파일을 엽니다.
     ///
     /// SDK: `VARIANT_BOOL Open(BSTR filename, VARIANT Format, VARIANT arg)`
     /// - `path` — 문서 파일의 경로(URL 사용 가능)
-    /// - `format` — 문서 형식. 예: `"HWP"`, `"HWPML2X"`, `"HTML"`, `"TEXT"`, `"UNICODE"`.
-    ///   빈 문자열이면 한글이 형식을 자동으로 인식합니다. 쓸 수 있는 형식은 설치된
-    ///   문서 필터(`*.dft`)에 따라 다릅니다.
+    /// - `format` — 문서 형식. `None`이면 빈 문자열을 넘겨 한글이 형식을 자동으로
+    ///   인식합니다. 쓸 수 있는 형식은 설치된 문서 필터(`*.dft`)에 따라 다릅니다
+    ///   ([`FileFormat`]).
     /// - `arg` — 세부 옵션. `key:value;key:value;...` 형식이고 의미는 `format`에 따라
     ///   다릅니다. 예: `"forceopen:true;suspendpassword:true"`. 없으면 빈 문자열.
     ///
     /// SDK가 `false`를 돌려주면(열기 실패) `ExecutionFailed` 에러를 반환합니다.
-    pub fn open(&self, path: &str, format: &str, arg: &str) -> crate::error::Result<()> {
+    pub fn open(
+        &self,
+        path: &str,
+        format: Option<&FileFormat>,
+        arg: &str,
+    ) -> crate::error::Result<()> {
+        let format = format.map_or("", FileFormat::as_str);
         let ok: bool = self.call_with(
             "Open",
             vec![

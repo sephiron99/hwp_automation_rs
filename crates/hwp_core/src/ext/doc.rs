@@ -1,7 +1,7 @@
 //! 문서 단위 편의 API — [`HwpObject::ext_doc`]
 use crate::error::{HwpError, Result};
 use crate::hwp_obj::HwpObject;
-use crate::method::hwp_object::GetTextFileFormat;
+use crate::method::hwp_object::{FileFormat, GetTextFileFormat};
 
 use crate::method::h_action::HAction;
 
@@ -27,7 +27,7 @@ impl HwpObject {
 impl ExtDoc<'_> {
     /// 현재 문서를 hwpx(`HWPX`) 포맷으로 저장합니다. (`SaveAs(path, "HWPX", "")`)
     pub fn save_as_hwpx(&self, path: &str) -> Result<()> {
-        self.0.save_as(path, "HWPX", "")
+        self.0.save_as(path, &FileFormat::HWPX, "")
     }
 
     /// 현재 문서의 HWPML과, 그 안에서 커서가 있는 위치를 반환합니다.
@@ -111,7 +111,7 @@ impl ExtDoc<'_> {
         let action = self.insert_bookmark(&bookmark_name)?;
         // `lock:false`가 없으면 열린 문서가 임시 파일로 바뀐다(이후 `Save`가 임시 파일에
         // 저장된다). 책갈피는 저장에 실패해도 되돌린다.
-        let saved = self.0.save_as(path, "HWPX", "lock:false");
+        let saved = self.0.save_as(path, &FileFormat::HWPX, "lock:false");
         if saved.is_ok() {
             // 한글은 마지막으로 `SaveAs`한 파일을 삭제 공유 없이 열어 두어, 그대로는
             // `HwpxCaret`이 버려질 때 지우지 못한다. 다음 저장 계열 호출이 그 핸들을 놓으므로
