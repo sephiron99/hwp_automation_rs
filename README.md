@@ -338,6 +338,13 @@ use hwp_com::method::hwp_object::FileFormat;
 hwp.save_as(path, &FileFormat::HWPX, "")?;
 ```
 
+**`XHwpDocument::edit_mode()`와 `modified()`의 반환 타입이 바뀌었습니다.** 한글이 돌려주는 정수 값을 그대로 감싼 타입입니다.
+
+| 0.3.0 | 다음 버전 |
+|---|---|
+| `edit_mode() -> Result<i32>` | `edit_mode() -> Result<EditMode>`. 배포용 문서는 다른 모드와 합쳐져 오므로(실측 17) `contains(EditMode::DISTRIBUTION)`으로, 읽기 전용은 `is_read_only()`로 판단합니다. 정수는 `bits()` |
+| `modified() -> Result<bool>` | `modified() -> Result<ModifiedState>`. 변경 여부는 `is_modified()`. 0.3.0의 `bool` 버전은 한글이 정수를 돌려줘 항상 `VariantConversion` 에러가 났습니다 |
+
 ### 0.3.0
 
 **로그가 `tracing`으로 바뀌었습니다.** `hwp_core::debug` 모듈과 `hwp_addon::debug::log`가 없어졌습니다. 로그를 남기려면 `tracing::debug!` 등을 쓰고, 파일로 받으려면 위 [로그](#로그) 절을 참고하세요. 더 이상 라이브러리가 `%LOCALAPPDATA%`에 로그 파일을 저절로 만들지 않습니다. `hwp_addon::debug::{msgbox, msgbox_err}`는 그대로입니다.
