@@ -171,7 +171,7 @@ COM 호출 실패는 `debug`, 개별 COM 호출 흐름은 `trace` 레벨입니�
 
 ```toml
 [dependencies]
-hwp_com = { version = "0.3", features = ["v2022"] } # 한글 2022 이상을 대상으로 함
+hwp_com = { version = "0.4", features = ["v2022"] } # 한글 2022 이상을 대상으로 함
 ```
 
 - `v2024`는 `v2022`를 포함합니다. `hwp_addon`도 같은 이름의 feature를 씁니다.
@@ -294,7 +294,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 
 ## Breaking changes
 
-### 다음 버전 (미배포)
+### 0.4.0
 
 **Action 래퍼가 `HAction`으로 옮겨졌습니다.** `HwpObject::act()`와 `Act` 타입이 없어졌습니다.
 
@@ -303,7 +303,7 @@ Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온�
 hwp.act().undo()?;
 hwp.act().run("FileNew")?;
 
-// 다음 버전
+// 0.4.0
 hwp.h_action()?.undo()?;
 hwp.h_action()?.run("FileNew")?;
 ```
@@ -316,7 +316,7 @@ hwp.h_action()?.run("FileNew")?;
 
 **편의 API가 `ext_` 핸들로 옮겨졌습니다.** `HwpExt` trait과 `hwp_com::HwpExt`, `hwp_addon::HwpExt` 재내보내기가 없어졌고, `hwp_addon::text_extract`(`HwpTextExt`, `TextWalker`, `TextSegment`)는 `hwp_core::ext`로 옮겨져 OLE 클라이언트에서도 쓸 수 있습니다.
 
-| 0.3.0 | 다음 버전 |
+| 0.3.0 | 0.4.0 |
 |---|---|
 | `hwp.insert_text(t)` | `hwp.ext_text().insert(t)` |
 | `hwp.text_segments()` / `text_segments_with(..)` | `hwp.ext_text().segments()` / `segments_with(..)` |
@@ -335,21 +335,21 @@ hwp.h_action()?.run("FileNew")?;
 // 0.3.0
 hwp.save_as(path, "HWPX", "")?;
 
-// 다음 버전
+// 0.4.0
 use hwp_com::method::hwp_object::FileFormat;
 hwp.save_as(path, &FileFormat::HWPX, "")?;
 ```
 
 **`XHwpDocument::edit_mode()`와 `modified()`의 반환 타입이 바뀌었습니다.** 한글이 돌려주는 정수 값을 그대로 감싼 타입입니다.
 
-| 0.3.0 | 다음 버전 |
+| 0.3.0 | 0.4.0 |
 |---|---|
 | `edit_mode() -> Result<i32>` | `edit_mode() -> Result<EditMode>`. 배포용 문서는 다른 모드와 합쳐져 오므로(실측 17) `contains(EditMode::DISTRIBUTION)`으로, 읽기 전용은 `is_read_only()`로 판단합니다. 정수는 `bits()` |
 | `modified() -> Result<bool>` | `modified() -> Result<ModifiedState>`. 변경 여부는 `is_modified()`. 0.3.0의 `bool` 버전은 한글이 정수를 돌려줘 항상 `VariantConversion` 에러가 났습니다 |
 
 **문서 안의 위치가 타입으로 바뀌었습니다.** 새 모듈 `pos`(`hwp_com::pos`, `hwp_addon::pos`)의 `ListParaPos { list, para, pos }`, 같은 리스트 안의 `ParaPos { para, pos }`, 범위 `ListParaRange { start, end }`를 씁니다. `SelectText`·`InitScan`·`MovePos`처럼 리스트 없이 받는 SDK 함수는 `ParaPos`를 받습니다.
 
-| 0.3.0 | 다음 버전 |
+| 0.3.0 | 0.4.0 |
 |---|---|
 | `let (list, para, pos) = hwp.get_pos()?;` | `let p = hwp.get_pos()?;` → `p.list`, `p.para`, `p.pos` |
 | `hwp.select_text(spara, spos, epara, epos)?` | `hwp.select_text(ParaPos::new(spara, spos), ParaPos::new(epara, epos))?` (현재 위치에서 시작하면 `hwp.get_pos()?.para_pos()`) |

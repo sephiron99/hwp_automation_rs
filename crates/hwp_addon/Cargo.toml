@@ -1,6 +1,6 @@
 [package]
 name = "hwp_addon"
-version = "0.3.0"
+version = "0.4.0"
 authors = [ "sephiron <sephiron@hanmail.net>" ]
 license = "MIT"
 edition = "2024"
@@ -27,7 +27,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 thiserror = "2.0.20"
 # 2. 문자열 처리 (COM BSTR <-> Rust String 변환용)
 widestring = "1.2.1"
-hwp_core = { version = "0.3.0", path = "../hwp_core" }
+hwp_core = { version = "0.4.0", path = "../hwp_core" }
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std", "chrono"], optional = true }
 

@@ -6,7 +6,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-hwp_com = { version = "0.3.0", path = "../hwp_com" }
+hwp_com = { version = "0.4.0", path = "../hwp_com" }
 
 [dependencies.windows]
 version = "0.62"

@@ -10,7 +10,7 @@ name = "test_hwpml_caret"
 crate-type = ["cdylib"]
 
 [dependencies]
-hwp_addon = { version = "0.3.0", path = "../hwp_addon" }
+hwp_addon = { version = "0.4.0", path = "../hwp_addon" }
 
 [dependencies.windows]
 version = "0.62.2"
