@@ -74,9 +74,18 @@ impl FileFormat {
     pub const HTML: Self = Self::from_static("HTML");
     /// 유니코드 텍스트 문서
     pub const UNICODE: Self = Self::from_static("UNICODE");
-    /// 마이크로소프트 워드 문서
+    /// 마이크로소프트 워드 97-2003 문서(`.doc`). 한글 2018에서 `SaveAs`는 `false`(확인/취소 상자에 "확인"을
+    /// 눌러도 같다)
     pub const MSWORD: Self = Self::from_static("MSWORD");
-    /// PDF. SDK 목록에는 없다. 이 프로젝트에서는 확인하지 않음
+    /// 마이크로소프트 워드 문서(`.docx`, Office Open XML). SDK 목록에는 없다. 한글 2018에서 저장 확인.
+    /// 저장할 때 한글이 확인/취소 상자를 띄우고 "확인"이어야 저장하므로, 숨긴 창에서는
+    /// [`set_message_box_mode`](HwpObject::set_message_box_mode)로
+    /// [`MessageBoxMode::OKCANCEL_IDOK`]을 지정해야 한다(취소면 `SaveAs`가 `false`)
+    pub const OOXML: Self = Self::from_static("OOXML");
+    /// OpenDocument 텍스트 문서(`.odt`). SDK 목록에는 없다. 한글 2018에서 저장 확인(확인 상자 없음).
+    /// 형식 이름이 `"ODT"`가 아니라 `"ODF"`다(`"ODT"`는 `SaveAs`가 `false`)
+    pub const ODF: Self = Self::from_static("ODF");
+    /// PDF. SDK 목록에는 없다. 한글 2018에서 저장 확인
     pub const PDF: Self = Self::from_static("PDF");
 
     const fn from_static(name: &'static str) -> Self {
