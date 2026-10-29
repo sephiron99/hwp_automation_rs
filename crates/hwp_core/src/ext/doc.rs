@@ -15,7 +15,16 @@ const CARET_BOOKMARK: &str = "__hwp_core_caret__";
 const HWPX_CARET_PREFIX: &str = "_CARET_";
 
 /// 문서 단위 편의 API 핸들. [`HwpObject::ext_doc`]로 얻는다.
+#[derive(Clone, Copy)]
+#[must_use = "편의 API 핸들은 메서드를 불러야 동작합니다"]
 pub struct ExtDoc<'a>(&'a HwpObject);
+
+// HwpObject가 Debug를 구현하지 않으므로 직접 구현한다.
+impl std::fmt::Debug for ExtDoc<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ExtDoc").finish_non_exhaustive()
+    }
+}
 
 impl HwpObject {
     /// 문서 단위 편의 API 핸들을 돌려줍니다. [`ExtDoc`] 참고.

@@ -5,7 +5,16 @@ use crate::hwp_obj::HwpObject;
 use super::{CharShape, ParaShape};
 
 /// 글자·문단 모양 편의 API 핸들. [`HwpObject::ext_shape`]로 얻는다.
+#[derive(Clone, Copy)]
+#[must_use = "편의 API 핸들은 메서드를 불러야 동작합니다"]
 pub struct ExtShape<'a>(&'a HwpObject);
+
+// HwpObject가 Debug를 구현하지 않으므로 직접 구현한다.
+impl std::fmt::Debug for ExtShape<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ExtShape").finish_non_exhaustive()
+    }
+}
 
 impl HwpObject {
     /// 글자·문단 모양 편의 API 핸들을 돌려줍니다. [`ExtShape`] 참고.
