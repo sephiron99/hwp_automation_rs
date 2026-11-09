@@ -356,6 +356,8 @@ SDK는 `lock`을 "저장한 후 해당 파일을 계속 오픈한 상태로 lock
 
 근거: [편의 API](crates/hwp_core/src/ext/doc.rs), [SaveAs 바인딩](crates/hwp_core/src/method/hwp_object.rs).
 
+`GetTextFile`과 `SaveAs`의 형식별 속도, 저장 직후 읽기가 느린 원인(Defender 검사로 추정)은 [문서 전체를 텍스트로 빨리 얻는 방법](문서_내보내기_속도.md)에 정리했다.
+
 ## 기존 문서·주석을 읽을 때의 정정 사항
 
 오래된 설명을 다시 구현 근거로 삼지 않도록 차이를 남긴다. 아래 항목은 현재 코드와 SDK를 대조한 결과이며, 이 문서 작성으로 해당 소스나 과거 문서를 일괄 수정하지는 않았다.
