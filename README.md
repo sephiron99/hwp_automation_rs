@@ -2,430 +2,73 @@
 
 한글(HWP) COM/OLE 자동화를 위한 Rust 바인딩 라이브러리.
 
-한글의 공식 OLE Automation API를 Rust에서 안전하게 사용할 수 있도록 설계된 워크스페이스입니다. 외부 프로세스에서 한글을 제어하는 **OLE 클라이언트** 방식과, 한글 내부에서 실행되는 **애드온 DLL** 방식을 모두 지원합니다.
+외부 프로세스에서 한글을 제어하는 **OLE 클라이언트**(`hwp_com`)와, 한글 안에서 실행되는 **애드온 DLL**(`hwp_addon`)을 모두 지원합니다.
 
 > **비공식 프로젝트입니다.** 주식회사 한글과컴퓨터와 무관하며, 한컴의 승인이나 지원을 받지 않았습니다.
 >
 > 이 라이브러리로 한글 오토메이션을 쓰는 것은 한컴의 이용 조건을 따릅니다. 한컴은 개인의 비상업적 이용만 자유롭게 허용하고, **상업적 이용에는 한컴의 별도 라이선스**를 요구합니다. 이 저장소의 MIT 라이선스는 이 저장소의 코드에만 적용됩니다. 자세한 내용은 [상표 및 권리 고지](#상표-및-권리-고지-trademark--rights-notice)를 참고하세요.
 
-SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI 등의 경험과 구현상 가정은 [HWP 실전 노트](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_실전_노트.md)에 정리했습니다.
-
-한컴의 공식 SDK 문서(Automation API, Action·ParameterSet 표, 애드온 개발 안내서, 보안 모듈 예제)는 [hancom-io/devcenter-archive](https://github.com/hancom-io/devcenter-archive)를 참고하세요.
-
----
-
 ## 특징
 
-- **두 가지 연동 방식**: OLE 클라이언트(`hwp_com`) / 애드온 DLL(`hwp_addon`)
-- **편의 API와 SDK 직접 사용**: 자주 쓰는 작업은 편의 API로, 그 밖의 것은 SDK method와 Action(530개 래퍼)을 그대로 호출
-- **타입 안전한 API**: `HwpVer`, `ScanRange` 등 래퍼 타입을 제공하고, 한글이 `false`로 알리는 실패까지 `HwpError`로 통일해 `?`로 처리
-- **버전 확인**: `hwp.version()`으로 실행 중인 한글 버전을 `HwpVer`(V2018 / V2022 / V2024 / `Other`)로 확인. 버전을 읽지 못하면 `Other(0, 0)`
-- **WSL 지원**: WSL 환경에서 `i686-pc-windows-msvc` 크로스 컴파일 가능
+- **편의 API와 SDK 직접 사용**: 자주 쓰는 작업은 편의 API(`hwp.ext_text()` 등)로, 그 밖의 것은 SDK method와 Action(530개 래퍼)을 그대로 호출
+- **타입 안전**: 한글이 `false`로 알리는 실패까지 `HwpError`로 통일해 `?`로 처리
+- **한글 2018 / 2022 / 2024**: 실행 중인 버전을 `hwp.version()`으로 확인하고, 새 버전의 API는 cargo feature로 선택
+- **WSL에서 빌드**: `i686-pc-windows-msvc` 크로스 컴파일
 
----
+| 항목 | 요구 사항 |
+|---|---|
+| 운영체제 | Windows |
+| 타겟 | `i686-pc-windows-msvc`(Only) |
+| 한글 버전 | 2018 (major 10), 2022 (major 12), 2024 (major 13) |
+| Rust | edition 2024 |
 
-## 지원 환경
+## 빠른 시작
 
-| 항목      | 요구 사항                                            |
-|-----------|------------------------------------------------------|
-| 운영체제  | Windows                                              |
-| 타겟      | `i686-pc-windows-msvc`(Only)                         |
-| 한글 버전 | V2018 (major 10), V2022 (major 12), V2024 (major 13) |
-| Rust      | edition 2024                                         |
-
----
-
-## 크레이트 구조
-
+```toml
+[dependencies]
+hwp_com = "0.4"     # OLE 클라이언트
+# hwp_addon = "0.4" # 애드온 DLL (crate-type = ["cdylib"])
 ```
-hwp_automation_rs/
-├── crates/
-│   ├── hwp_core/        # 공유 기반 라이브러리 (HwpObject, HwpError, HwpVer, SDK method·Action binding, 편의 API)
-│   ├── hwp_com/         # OLE 클라이언트 (CoCreateInstance, Running Object Table)
-│   ├── hwp_addon/       # 애드온 DLL 프레임워크 (HwpUserAction 트레이트, vtable)
-│   ├── hello_hwp_ole/   # OLE 클라이언트 예제
-│   ├── hello_hwp_dll/   # 애드온 DLL 예제
-│   ├── bench_doc_export/ # 문서 내보내기 방법별 시간 측정 (OLE 클라이언트)
-│   ├── test_hwpml_caret/ # `hwpml_with_caret` 실환경 검증용 애드온 DLL
-│   └── hwp_dabbrev/     # Emacs dabbrev 스타일 자동완성 애드온
-└── HncUserActionSample/ # C++ 애드온 레퍼런스 샘플
-```
-
-### 의존 관계
-
-```
-hwp_core  ←──  hwp_com    ←──  hello_hwp_ole  (OLE 예제 바이너리)
-          ←──  hwp_addon  ←──  hello_hwp_dll  (애드온 DLL 예제)
-                          ←──  test_hwpml_caret (hwpml_with_caret 검증용 DLL)
-                          ←──  hwp_dabbrev    (dabbrev 애드온)
-```
-
-사용자는 `hwp_com`이나 `hwp_addon` 하나만 의존하면 됩니다. 두 크레이트가 `HwpObject`, `HwpError`, `Result`, `HwpVer`와 `hwp_core`의 `method`, `pset`, `actions`, `ext`, `variant`, `error`, `hwp_ver` 모듈을 같은 이름으로 다시 내보내므로, `hwp_core::method::…`는 `hwp_com::method::…`나 `hwp_addon::method::…`로 쓰면 됩니다. `hwp_core`에 직접 의존해도 같은 타입이라 섞어 써도 됩니다.
-
----
-
-## 빌드
-
-```bash
-cargo build           # 전체 빌드
-cargo build -p hwp_core  # 크레이트 개별 빌드
-cargo check           # 타입 검사만
-```
-
-> 테스트는 없으며, Windows 실환경에서만 검증합니다.
-
-### WSL 크로스 컴파일 설정
-
-WSL에서 `i686-pc-windows-msvc` 타겟으로 빌드하려면
-[sephiron99/msvc-wsl-rust](https://github.com/sephiron99/msvc-wsl-rust) 같은
-wsl2-msvc 링크 스크립트가 유용합니다. 저장소 설정은 링커를 지정하지 않고 `PATH`의 `link.exe`를 쓰므로,
-스크립트를 `link.exe`라는 이름으로 `PATH`에 두세요(예: `~/.local/bin/link.exe` 심볼릭 링크).
-
----
-
-## 사용 방법
-
-### OLE 클라이언트 (`hwp_com`)
-
-외부 프로세스에서 실행 중인 한글을 제어합니다.
 
 ```rust
 use hwp_com::HwpClient;
 
 fn main() -> hwp_com::Result<()> {
-    // 새 한글 인스턴스 시작
-    let hwp = HwpClient::new()?;
+    let hwp = HwpClient::new()?;                      // 새 한글 인스턴스 시작
     hwp.windows()?.active()?.set_visible(true)?;
-
-    // 실행 중인 모든 한글 인스턴스 열거
-    let instances = HwpClient::list_running()?;
-    for (_moniker, hwp) in &instances {
-        println!("버전: {}", hwp.version().display_name());
-        hwp.ext_text().insert("Hello from Rust!")?;
-    }
+    hwp.ext_text().insert("Hello from Rust!")?;      // 편의 API
+    hwp.h_action()?.char_shape_bold()?;              // Action
+    println!("{:?}", hwp.get_pos()?);                 // SDK method
     Ok(())
 }
 ```
 
-#### 주요 API
+애드온 DLL은 `HwpUserAction` trait을 구현하고 `export_hwp_addon!`으로 내보냅니다. 예제와 로그·버전 feature 설정은 사용법을 보세요.
 
-```rust
-HwpClient::new()           // 새 한글 인스턴스 시작
-HwpClient::attach()        // 실행 중인 첫 번째 인스턴스에 연결
-HwpClient::list_running()  // 실행 중인 모든 인스턴스 열거
-```
+## 문서
 
-세 함수는 그 스레드에서 처음 불릴 때 OLE를 초기화하고, 스레드가 끝날 때 해제합니다. 따로 할 일은 없습니다. 다만 얻은 `HwpObject`를 `static`이나 thread-local에 두면 OLE가 먼저 해제될 수 있으니 지역 변수로 쓰세요. 스레드가 끝나기 전에 해제하고 싶으면 `hwp_com::OleGuard`를 직접 쓰면 됩니다.
-
-`HwpObject`를 얻은 뒤의 사용법은 아래 [API 사용법](#api-사용법)을 참고하세요.
-
----
-
-### 애드온 DLL (`hwp_addon`)
-
-한글이 DLL을 로드하여 내부에서 직접 실행합니다.
-
-```rust
-use hwp_addon::{HwpObject, export_hwp_addon, hwp_user_action::{ActionMeta, HwpUserAction}};
-
-pub struct MyPlugin;
-
-impl HwpUserAction for MyPlugin {
-    fn actions(&self) -> &'static [ActionMeta] {
-        static ACTIONS: [ActionMeta; 1] = [ActionMeta {
-            name: "MyAction",
-            label: "내 액션",
-            image_index: 0,
-            shortcut: None,
-        }];
-        &ACTIONS
-    }
-
-    fn do_action(&self, action_name: &str, hwp: &HwpObject) -> hwp_addon::Result<bool> {
-        if action_name == "MyAction" {
-            hwp.ext_text().insert("Rust 애드온에서 삽입!")?;
-            return Ok(true);
-        }
-        Ok(false)
-    }
-}
-
-export_hwp_addon!(MyPlugin, MyPlugin);
-```
-
-`Cargo.toml`에서 `crate-type = ["cdylib"]`로 설정한 뒤 빌드하면 한글에 로드할 수 있는 DLL이 생성됩니다.
-
-### 로그
-
-모든 크레이트는 [`tracing`](https://docs.rs/tracing) 이벤트를 내보내기만 하고, 구독자(subscriber)는 설치하지 않습니다. 아무것도 하지 않으면 로그는 어디에도 기록되지 않습니다.
-
-- **OLE 클라이언트**: 실행 파일에서 직접 구독자를 설치합니다. 예: `tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).init();`
-- **애드온 DLL**: `hwp_addon`의 `file-log` feature를 켜고 `on_load`에서 `hwp_addon::logging::init_default(LevelFilter::DEBUG)`를 호출하면 `%LOCALAPPDATA%\HwpAddon\hwp_addon_debug.log`에 기록합니다. 여러 번 호출해도 처음 한 번만 설치됩니다.
-- **릴리스에서 아예 빼기**: 최종 바이너리/DLL 크레이트에서 `tracing`의 `release_max_level_off` 같은 [feature](https://docs.rs/tracing/latest/tracing/level_filters/index.html)를 켭니다.
-
-COM 호출 실패는 `debug`, 개별 COM 호출 흐름은 `trace` 레벨입니다.
-
-### 한글 버전 선택
-
-한글 2022, 2024에서 새로 생긴 API는 cargo feature를 켜야 쓸 수 있습니다. 아무것도 켜지 않으면 한글 2018 기준입니다.
-
-```toml
-[dependencies]
-hwp_com = { version = "0.4", features = ["v2022"] } # 한글 2022 이상을 대상으로 함
-```
-
-- `v2024`는 `v2022`를 포함합니다. `hwp_addon`도 같은 이름의 feature를 씁니다.
-- feature는 "이 버전 이상의 한글에서 실행한다"는 선언일 뿐이고, 실행 중인 한글 버전을 검사하지는 않습니다. 더 낮은 버전의 한글에서 그 API를 호출하면 SDK method·property는 `HwpError::UnknownMember`, Action은 `HwpError::ExecutionFailed`를 반환합니다.
-- docs.rs 문서에서는 이런 API에 "Available on crate feature v2022 only" 같은 표시가 붙습니다.
-
-아직 feature로 구분된 API는 없습니다.
-
----
-
-## API 사용법
-
-OLE 클라이언트든 애드온이든 `HwpObject`를 얻은 뒤의 사용법은 같습니다. 두 가지 방식이 있습니다.
-
-### 1. 편의 API
-
-자주 쓰는 작업을 한 번의 호출로 묶어 둔 것입니다. SDK를 그대로 옮긴 메서드와 구분되도록 `ext_` 접두어가 붙은 핸들을 거쳐 부르며, 따로 가져올(`use`) 것은 없습니다.
-
-| 핸들 | 내용 |
+| 문서 | 내용 |
 |---|---|
-| `hwp.ext_text()` | 텍스트 삽입(`insert`), 문서 텍스트 순회(`segments`, `segments_with`, `all`, `visit`) |
-| `hwp.ext_shape()` | 커서 위치의 글자·문단 모양(`current_char`, `current_para`) |
-| `hwp.ext_doc()` | HWPX 저장(`save_as_hwpx`), 커서 위치가 표시된 HWPML·HWPX(`hwpml_with_caret`, `hwpx_with_caret`), LLM용 문서 텍스트(`llm_snapshot`) |
+| [사용법](https://github.com/sephiron99/hwp_automation_rs/blob/main/사용법.md) | 크레이트 구조, OLE 클라이언트·애드온 DLL 예제, 로그, 버전 feature, 편의 API와 SDK 직접 사용, 구현 현황 |
+| [Breaking changes](https://github.com/sephiron99/hwp_automation_rs/blob/main/BREAKING_CHANGES.md) | 버전을 올릴 때 고칠 코드 |
+| [HWP 실전 노트](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_실전_노트.md) | SDK 설명에 더해 알아둘 IME, Undo, 팝업, C++ ABI, 저장 동작 등의 경험 |
+| [HWPML 안에서 문서 위치 찾기](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwpml_위치.md) | `GetPos`의 (list, para, pos)와 HWPML 위치를 서로 바꾸는 방법 |
+| [문서 전체를 텍스트로 빨리 얻는 방법](https://github.com/sephiron99/hwp_automation_rs/blob/main/문서_내보내기_속도.md) | `GetTextFile`·`SaveAs` 형식별 속도 비교 |
+| [`hwp_core` 구조](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_core.md) | 내부 층 구조와 모듈 (기여자용) |
+| [미구현 SDK method](https://github.com/sephiron99/hwp_automation_rs/blob/main/bind_progress.md) · [Action 구현 계획](https://github.com/sephiron99/hwp_automation_rs/blob/main/plan.md) | 구현 현황 |
+| [`hwp_dabbrev`](https://github.com/sephiron99/hwp_automation_rs/blob/main/crates/hwp_dabbrev/README.md) | Emacs dabbrev 스타일 자동완성 애드온 (예제) |
 
-```rust
-hwp.ext_text().insert("텍스트")?;               // 커서 위치에 텍스트 삽입
-let all = hwp.ext_text().all()?;                // 문서 전체 텍스트(컨트롤 안 포함)
-let shape = hwp.ext_shape().current_char()?;    // 커서 위치의 글자 모양
-hwp.ext_doc().save_as_hwpx("C:\\out.hwpx")?;    // HWPX로 저장
-let doc = hwp.ext_doc().hwpml_with_caret()?;    // 문서의 HWPML과 그 안의 커서 위치
-let (before, after) = doc.hwpml.split_at(doc.offset);
-let text = hwp.ext_doc().llm_snapshot(Some(20))?; // 커서 앞뒤 20문단을 LLM용 텍스트로
+한컴의 공식 SDK 문서(Automation API, Action·ParameterSet 표, 애드온 개발 안내서, 보안 모듈 예제)는 [hancom-io/devcenter-archive](https://github.com/hancom-io/devcenter-archive)에 있습니다. method와 Action 이름은 `hwp-automation/`의 `HwpAutomation_2504.pdf`, `ActionTable_2504.pdf`, `ParameterSetTable_2504.pdf`를 기준으로 합니다.
+
+## 빌드
+
+```bash
+cargo build              # 전체 빌드
+cargo build -p hwp_core  # 크레이트 개별 빌드
+cargo check              # 타입 검사만
 ```
 
-`hwpml_with_caret`은 커서 자리에 책갈피를 잠깐 넣어 `GetTextFile("HWPML2X")` 출력에서 그 자리를 찾고, 실행 취소(Undo)로 책갈피를 되돌린 뒤의 HWPML을 돌려줍니다. `GetPos` 값과 HWPML의 `CARETPOS`는 리스트·문단·글자 번호일 뿐이고, HWPML 본문 요소에는 그 번호에 대응하는 속성이 없어 커서가 HWPML의 어디인지 알 수 없기 때문입니다. 문서를 잠깐 수정하므로 수정 상태와 다시 실행(Redo) 기록이 바뀌고, `GetTextFile`을 두 번 부르므로 큰 문서에서는 느립니다. 선택 블록이 있으면 선택 방향과 상관없이 블록의 앞쪽 끝을 돌려주고, 호출 뒤에는 선택이 풀리며 커서가 블록의 뒤쪽 끝으로 갑니다.
-
-`llm_snapshot`은 문서를 글자·문단 모양 목록과, 모양이 바뀌는 자리에만 `{c20}` 같은 표시를 둔 본문으로 바꾸고 커서 자리에 `⟦CARET⟧`를 넣은 텍스트를 돌려줍니다. 표·머리말·각주는 문단 아래에 들여 써서 적습니다. `GetTextFile`을 한 번만 부르고 호출 전의 변경 상태를 되돌려 놓으므로, 문서 내용을 LLM에 넘길 때는 `hwpml_with_caret`보다 이쪽이 빠르고 짧습니다. 자동 번호의 글자(번호 문단의 "1." 등)는 나오지 않습니다.
-
-애드온에서는 `hwp_addon::text_edit::HwpEditExt`(커서 앞 문자 교체)도 쓸 수 있습니다. IME 조합 처리와 엮여 있어 애드온 크레이트에 있고, trait이라 `use`가 필요합니다.
-
-### 2. SDK 직접 사용
-
-편의 API에 없는 기능은 한글 SDK의 method와 Action을 그대로 호출합니다. 한컴 SDK 문서의 이름과 1:1로 대응합니다.
-
-**method** — `HwpAutomation` 문서의 method/property. `HwpObject`와 하위 객체에 직접 붙어 있습니다.
-
-```rust
-use hwp_com::method::hwp_object::{GetTextFileFormat, ScanRange, mask};   // 애드온은 hwp_addon::method::…
-use hwp_com::pos::ParaPos;
-
-let caret = hwp.get_pos()?;                       // ListParaPos { list, para, pos }
-hwp.get_text_file(GetTextFileFormat::Unicode, false)?;
-hwp.init_scan(mask::NORMAL, ScanRange::within_selection(), ParaPos::new(0, 0), ParaPos::new(0, 0))?;
-hwp.windows()?.active()?.set_visible(true)?;
-```
-
-**Action** — `ActionTable` 문서의 Action ID. `hwp.h_action()?`으로 얻는 `HAction`의 메서드입니다.
-
-```rust
-hwp.h_action()?.undo()?;            // Action ID "Undo"
-
-let action = hwp.h_action()?;       // 여러 Action은 HAction을 한 번만 얻어서
-action.char_shape_bold()?;          // Action ID "CharShapeBold"
-action.char_shape_italic()?;        // Action ID "CharShapeItalic"
-```
-
-래퍼가 아직 없는 것은 이름으로 직접 호출할 수 있습니다.
-
-```rust
-hwp.h_action()?.run("FileNew")?;                      // 래퍼가 없는 Action
-let n: i32 = hwp.get("PageCount")?;                   // 래퍼가 없는 property
-let ok: bool = hwp.call_with("Open", vec![/* .. */])?; // 래퍼가 없는 method
-```
-
-파라미터가 필요한 Action은 `hwp.h_action()`과 `hwp.h_parameter_set()`으로 실행합니다. Action을 인자 없이 실행하면 한글이 대화상자를 띄울 수 있습니다.
-
----
-
-## 구현 현황
-
-아직 SDK 전체를 덮지 못했습니다. 래퍼가 없는 기능은 위의 이름 기반 호출로 쓸 수 있습니다.
-
-| 대상 | 현황 | 자세한 내용 |
-|---|---|---|
-| SDK method | IDL의 366개 중 31개 | [`bind_progress.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/bind_progress.md) — 미구현 목록 |
-| Action | 530개 래퍼 (파라미터 없는 실행만) | [`plan.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/plan.md) — 전체 Action 구현 계획 |
-| 이벤트 (`IHwpObjectEvents`) | 미구현 | [`bind_progress.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/bind_progress.md) |
-
----
-
-## Hwp Addon Sample `hwp_dabbrev` — 자동완성 애드온
-
-Emacs의 `dabbrev-expand`에서 영감을 받은 한글 자동완성 애드온입니다.
-
-- **단축키**: `Ctrl+/`
-- **prefix 기반**: 커서 앞 단어를 prefix로 삼아 문서 내 일치하는 단어를 후보로 제시
-- **next-word 모드**: 커서가 단어 사이 공백에 있을 때 문서에서 직전 단어 다음에 등장하는 단어를 제안
-- **매 호출 전체 스캔**: 액션마다 문서 전체에서 단어 목록을 새로 구성하고, 중복을 제거한 모든 후보를 팝업에 전달
-- **선택 이력 우선**: 팝업에서 확정한 단어는 다음 호출부터 후보 앞쪽에 표시(확정 횟수가 많은 순, 같으면 최근 순). 나머지 후보는 문서 등장 순서를 유지. 이력은 한글이 실행 중인 동안만 유지하며 모든 문서가 공유
-- **후보 선택**: 팝업에서 `↑` / `↓` / `Ctrl+/`로 순환, `Enter`로 확정, `Esc`로 취소
-- **후보 현황**: 팝업 하단에 현재 선택 번호와 전체 후보 수를 표시하고, 화면 밖에 후보가 더 있으면 해당 방향의 `↑` / `↓` 표시
-
----
-
-## `hwp_core` 핵심 타입
-
-`HwpObject`, `HwpError`, `HwpVer`는 `hwp_com`, `hwp_addon` 루트에서도 같은 이름으로 쓸 수 있습니다. 자세한 내용은 [`hwp_core.md`](https://github.com/sephiron99/hwp_automation_rs/blob/main/hwp_core.md)를 참고하세요.
-
-| 타입 | 설명 |
-|------|------|
-| `HwpObject` | 최상위 API 진입점. `IHwpObject` 대응 |
-| `HwpError` | COM 오류 래퍼 (`ComError`, `ActionNotFound`, `ExecutionFailed` 등) |
-| `HwpVer` | 버전 열거형 (`V2018`, `V2022`, `V2024`, `Other`) |
-| `DispObj` | 일반 `IDispatch` 래퍼 (`hwp_com_type!` 매크로로 확장) |
-| `ScanRange` | `InitScan` 범위 파라미터 (`ScanSpos` + `ScanEpos` 비트 필드) |
-| `HAction` | 액션 실행기 (`run`, `execute`, `get_default`, `popup_dialog`)와 Action ID별 래퍼 (`hwp.h_action()?`) |
-| `ExtText`, `ExtShape`, `ExtDoc` | 편의 API 핸들 (`hwp.ext_text()`, `hwp.ext_shape()`, `hwp.ext_doc()`) |
-
----
-
-## Breaking changes
-
-### 0.4.0
-
-**Action 래퍼가 `HAction`으로 옮겨졌습니다.** `HwpObject::act()`와 `Act` 타입이 없어졌습니다.
-
-```rust
-// 0.3.0
-hwp.act().undo()?;
-hwp.act().run("FileNew")?;
-
-// 0.4.0
-hwp.h_action()?.undo()?;
-hwp.h_action()?.run("FileNew")?;
-```
-
-**`HwpError::OleInitFailed`가 없어졌습니다.** OLE 초기화 실패는 원래 HRESULT가 담긴 `HwpError::ComError`로 옵니다(예: 이미 MTA로 초기화된 스레드의 `RPC_E_CHANGED_MODE`). 이 variant를 `match`하던 코드는 지우면 됩니다.
-
-`HwpClient` 사용법은 그대로입니다. 이전에는 `new`, `attach`, `list_running`이 부를 때마다 `OleInitialize`를 부르고 해제하지 않았는데, 이제 스레드마다 처음 한 번만 초기화하고 스레드가 끝날 때 해제합니다. 해제 시점을 직접 정하려면 새로 생긴 `hwp_com::OleGuard`를 쓰면 됩니다.
-
-여러 Action을 이어서 실행할 때는 `let action = hwp.h_action()?;`로 한 번 얻어 두고 `action.undo()?` 처럼 부르면 Action마다 `HAction`을 다시 얻지 않습니다.
-
-**편의 API가 `ext_` 핸들로 옮겨졌습니다.** `HwpExt` trait과 `hwp_com::HwpExt`, `hwp_addon::HwpExt` 재내보내기가 없어졌고, `hwp_addon::text_extract`(`HwpTextExt`, `TextWalker`, `TextSegment`)는 `hwp_core::ext`로 옮겨져 OLE 클라이언트에서도 쓸 수 있습니다.
-
-| 0.3.0 | 0.4.0 |
-|---|---|
-| `hwp.insert_text(t)` | `hwp.ext_text().insert(t)` |
-| `hwp.text_segments()` / `text_segments_with(..)` | `hwp.ext_text().segments()` / `segments_with(..)` |
-| `hwp.get_all_text()` | `hwp.ext_text().all()` |
-| `hwp.visit_all_text(f)` | `hwp.ext_text().visit(f)` |
-| `hwp.current_char_shape()` / `current_para_shape()` | `hwp.ext_shape().current_char()` / `current_para()` |
-| `hwp.save_as_hwpx(p)` | `hwp.ext_doc().save_as_hwpx(p)` |
-| `hwp.hwpml_with_caret()` | `hwp.ext_doc().hwpml_with_caret()` |
-| `hwp_addon::text_extract::TextSegment` | `hwp_core::ext::TextSegment` (`hwp_addon::ext::TextSegment`) |
-
-`use …::HwpExt;`와 `use hwp_addon::text_extract::HwpTextExt;`는 지우면 됩니다.
-
-**`save_as`의 형식 인자가 `FileFormat`입니다.** 형식 이름을 문자열 대신 `FileFormat` 상수로 넘깁니다. 상수에 없는 형식은 `FileFormat::new("이름")`으로 만듭니다.
-
-```rust
-// 0.3.0
-hwp.save_as(path, "HWPX", "")?;
-
-// 0.4.0
-use hwp_com::method::hwp_object::FileFormat;
-hwp.save_as(path, &FileFormat::HWPX, "")?;
-```
-
-**`XHwpDocument::edit_mode()`와 `modified()`의 반환 타입이 바뀌었습니다.** 한글이 돌려주는 정수 값을 그대로 감싼 타입입니다.
-
-| 0.3.0 | 0.4.0 |
-|---|---|
-| `edit_mode() -> Result<i32>` | `edit_mode() -> Result<EditMode>`. 배포용 문서는 다른 모드와 합쳐져 오므로(실측 17) `contains(EditMode::DISTRIBUTION)`으로, 읽기 전용은 `is_read_only()`로 판단합니다. 정수는 `bits()` |
-| `modified() -> Result<bool>` | `modified() -> Result<ModifiedState>`. 변경 여부는 `is_modified()`. 0.3.0의 `bool` 버전은 한글이 정수를 돌려줘 항상 `VariantConversion` 에러가 났습니다 |
-
-**문서 안의 위치가 타입으로 바뀌었습니다.** 새 모듈 `pos`(`hwp_com::pos`, `hwp_addon::pos`)의 `ListParaPos { list, para, pos }`, 같은 리스트 안의 `ParaPos { para, pos }`, 범위 `ListParaRange { start, end }`를 씁니다. `SelectText`·`InitScan`·`MovePos`처럼 리스트 없이 받는 SDK 함수는 `ParaPos`를 받습니다.
-
-| 0.3.0 | 0.4.0 |
-|---|---|
-| `let (list, para, pos) = hwp.get_pos()?;` | `let p = hwp.get_pos()?;` → `p.list`, `p.para`, `p.pos` |
-| `hwp.select_text(spara, spos, epara, epos)?` | `hwp.select_text(ParaPos::new(spara, spos), ParaPos::new(epara, epos))?` (현재 위치에서 시작하면 `hwp.get_pos()?.para_pos()`) |
-| `hwp.init_scan(option, range, spara, spos, epara, epos)?` | `hwp.init_scan(option, range, ParaPos::new(spara, spos), ParaPos::new(epara, epos))?` |
-| `hwp.text_segments_with(option, range, 0, 0, 0, 0)` | `hwp.ext_text().segments_with(option, range, ParaPos::new(0, 0), ParaPos::new(0, 0))` |
-| `MovePos::Main { para, pos }` / `MovePos::CurList { para, pos }` | `MovePos::Main(ParaPos::new(para, pos))` / `MovePos::CurList(..)` |
-
-### 0.3.0
-
-**로그가 `tracing`으로 바뀌었습니다.** `hwp_core::debug` 모듈과 `hwp_addon::debug::log`가 없어졌습니다. 로그를 남기려면 `tracing::debug!` 등을 쓰고, 파일로 받으려면 위 [로그](#로그) 절을 참고하세요. 더 이상 라이브러리가 `%LOCALAPPDATA%`에 로그 파일을 저절로 만들지 않습니다. `hwp_addon::debug::{msgbox, msgbox_err}`는 그대로입니다.
-
-### 0.2.0
-
-0.1.0에서 올리면 아래 네 가지를 고쳐야 합니다.
-
-**1. Action 호출은 `hwp.act()`를 거칩니다.**
-
-```rust
-// 0.1.0
-hwp.undo()?;
-hwp.char_shape_bold()?;
-
-// 0.2.0
-hwp.act().undo()?;
-hwp.act().char_shape_bold()?;
-```
-
-`select()`, `move_word_begin()`을 포함해 Action ID에 대응하는 메서드 전부가 해당됩니다. `hwp.get_pos()` 같은 SDK method는 그대로입니다.
-
-**2. 편의 API는 `HwpExt` trait을 가져와야 쓸 수 있습니다.**
-
-`insert_text`, `save_as_hwpx`, `current_char_shape`, `current_para_shape`, `hwpml_with_caret`이 해당됩니다.
-
-```rust
-use hwp_core::ext::HwpExt;   // 또는 hwp_com::HwpExt
-```
-
-**3. `hwp_core`의 모듈 경로가 바뀌었습니다.**
-
-| 0.1.0 | 0.2.0 |
-|---|---|
-| `hwp_core::ihwpobject::lib` | `hwp_core::method::hwp_object` |
-| `hwp_core::ihwpobject::movepos` | `hwp_core::method::movepos` |
-| `hwp_core::ihwpobject::{CharShape, ParaShape}` | `hwp_core::ext::{CharShape, ParaShape}` |
-| `hwp_core::hwp_types` | `hwp_core::method::xhwp` |
-| `hwp_core::h_action::HAction` | `hwp_core::method::h_action::HAction` |
-| `hwp_core::h_action::{HParameterSet, HCharShape, HParaShape, HInsertText}` | `hwp_core::pset::{..}` |
-
-**4. 성공 여부를 `bool`로 돌려주던 메서드가 `Result<()>`를 돌려줍니다.**
-
-한글이 `false`(실패)를 돌려주면 `Ok(false)` 대신 `Err(HwpError::ExecutionFailed)`가 됩니다. 반환값을 검사하던 코드는 `?`로 바꾸면 됩니다.
-
-| 대상 | 메서드 |
-|---|---|
-| `HwpObject` | `save_as`, `init_scan`, `select_text` |
-| `HwpExt` | `save_as_hwpx` |
-| `XHwpToolbarLayout` | `delete_toolbar`, `show_toolbar` |
-| `XHwpToolbar` | `delete_button` |
-
-```rust
-// 0.1.0
-if !hwp.save_as(path, "HWPX", "")? { /* 실패 처리 */ }
-
-// 0.2.0
-hwp.save_as(path, "HWPX", "")?;
-```
-
-`key_indicator`의 실패도 `ComError`가 아니라 `ExecutionFailed`로 바뀌었습니다. `is_new_serialize_path`, `visible`처럼 `bool`이 질문의 답인 메서드는 그대로 `Result<bool>`입니다.
-
----
-
-## HWP SDK 문서
-
-한컴이 공개한 SDK 문서는 [hancom-io/devcenter-archive](https://github.com/hancom-io/devcenter-archive)에서 받을 수 있습니다. method와 Action 이름은 `hwp-automation/` 디렉터리의 `HwpAutomation_2504.pdf`, `ActionTable_2504.pdf`, `ParameterSetTable_2504.pdf`를 기준으로 합니다. 애드온 개발 안내서는 `hwp-control/Addon-Action.pdf`입니다.
-
----
+테스트는 없으며, Windows 실환경에서만 검증합니다. WSL에서는 [sephiron99/msvc-wsl-rust](https://github.com/sephiron99/msvc-wsl-rust) 같은 링크 스크립트를 `link.exe`라는 이름으로 `PATH`에 두면 됩니다(예: `~/.local/bin/link.exe` 심볼릭 링크).
 
 ## 상표 및 권리 고지 (Trademark & Rights Notice)
 

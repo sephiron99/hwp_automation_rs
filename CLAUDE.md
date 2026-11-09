@@ -56,7 +56,7 @@ Two modes of interacting with HWP:
 - 호출을 둘 이상 묶거나, 기본값을 정하거나, 에러를 삼키는 코드는 `ext`에 둔다. `ext`는 아래 층의 공개 API만 쓴다.
 - 구조를 건드린 뒤에는 `cargo check`와 `scripts/check_layers.sh`(역방향 참조 검사)를 실행한다.
 - 한글 2022·2024에서 새로 생긴 API는 `#[cfg(feature = "v2022")]`/`v2024`로 감싼다. feature로 감싼 코드를 바꾼 뒤에는 `cargo check --all-features`도 실행한다. 자세한 규칙은 `hwp_core.md`의 "버전 feature".
-- 사용자 문서(`README.md`)에서는 4층을 드러내지 않고 "편의 API"와 "SDK 직접 사용(method, Action)" 두 갈래로만 설명한다.
+- 사용자 문서(`README.md`, `사용법.md`)에서는 4층을 드러내지 않고 "편의 API"와 "SDK 직접 사용(method, Action)" 두 갈래로만 설명한다.
 - 자세한 구조는 `hwp_core.md`, SDK method 미구현 목록은 `bind_progress.md`, Action 구현 계획은 `plan.md`.
 
 ## HWP SDK Documentation

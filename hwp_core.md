@@ -36,7 +36,7 @@ Windows COM/OLE를 통해 한글(HWP)을 Rust에서 제어하는 공유 라이�
 `scripts/check_layers.sh`가 역방향 참조(`pset`에서 `crate::method` 등)를 찾아 실패시킨다.
 구조를 바꾼 뒤에는 `cargo check`와 함께 실행한다.
 
-사용자 문서(`README.md`)에서는 이 네 층을 드러내지 않고 "편의 API"와 "SDK 직접 사용" 두 갈래로만 설명한다.
+사용자 문서(`README.md`, `사용법.md`)에서는 이 네 층을 드러내지 않고 "편의 API"와 "SDK 직접 사용" 두 갈래로만 설명한다.
 
 ### re-export 정책
 
